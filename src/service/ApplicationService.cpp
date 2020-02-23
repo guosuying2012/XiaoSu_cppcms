@@ -6,12 +6,11 @@
 #include "../utils/JsonSerializer.h"
 #include "ApplicationService.h"
 
-#include <cppcms/url_mapper.h>
 #include <cppcms/http_response.h>
 #include <cppcms/url_dispatcher.h>
 
 ApplicationService::ApplicationService(cppcms::service& srv)
-    :cppcms::application(srv)
+    :BaseService(srv)
 {
 	try
 	{
@@ -21,16 +20,8 @@ ApplicationService::ApplicationService(cppcms::service& srv)
 	}
 	catch (const std::exception& e)
 	{
-		//PLOG_ERROR << "DBO Error: " << e.what();
 	}
-}
 
-void ApplicationService::main(std::string url)
-{
-	if(!dispatcher().dispatch(url))
-	{
-		response().status(cppcms::http::response::not_found);
-		response().out() << json_serializer(404, url, "api not fount");
-	}
+	dispatcher().map("GET", "/api", &ApplicationService::index, this);
 }
 

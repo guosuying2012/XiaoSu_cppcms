@@ -5,15 +5,13 @@
 #ifndef _APPLICATIONSERVICE_H
 #define _APPLICATIONSERVICE_H
 
-#include <string>
-#include <cppcms/application.h>
+#include "BaseService.h"
 
-class ApplicationService : public cppcms::application
+class ApplicationService : public BaseService
 {
 public:
     explicit ApplicationService(cppcms::service& srv);
     ~ApplicationService() override = default;
-    void main(std::string url) override;
 };
 
-#endif //HELLOCLION_APPLICATIONSERVICE_H
+#endif //_APPLICATIONSERVICE_H

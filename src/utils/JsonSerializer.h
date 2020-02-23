@@ -256,7 +256,8 @@ private:
     rapidjson::Writer<rapidjson::StringBuffer> m_writer;
 };
 
-std::string json_serializer(int nStatus, const std::string& strAction, const std::string& strMsg)
+template<typename C>
+std::string json_serializer(const C& nStatus, const std::string& strAction, const std::string& strMsg)
 {
     JsonSerializer serializer(nStatus, strAction, strMsg);
     serializer.serialize();

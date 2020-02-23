@@ -2,8 +2,8 @@
 // Created by yengsu on 2020/1/23.
 //
 
-#ifndef HELLOCLION_SYS_LOG_H
-#define HELLOCLION_SYS_LOG_H
+#ifndef _SYS_LOG_H
+#define _SYS_LOG_H
 
 #include "../define.h"
 
@@ -118,4 +118,4 @@ public:
 
 DISENABLE_DEFAULT_KEY(SystemLog);
 
-#endif //HELLOCLION_SYS_LOG_H
+#endif //_SYS_LOG_H
