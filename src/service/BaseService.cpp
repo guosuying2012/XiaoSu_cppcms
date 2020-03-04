@@ -8,16 +8,17 @@
 #include <cppcms/http_response.h>
 #include <cppcms/url_dispatcher.h>
 
-BaseService::BaseService(cppcms::service &srv) : application(srv)
+BaseService::BaseService(cppcms::service &srv)
+	: application(srv)
 {
 }
 
-void BaseService::main(std::string url)
+void BaseService::main(std::string str_url)
 {
-    if(!dispatcher().dispatch(url))
+	m_str_action = str_url;
+    if(!dispatcher().dispatch(str_url))
     {
         response().status(cppcms::http::response::not_found);
-        response().out() << json_serializer(404, url, "api not fount");
+        response().out() << json_serializer(404, str_url, "api not fount");
     }
 }
-

@@ -14,11 +14,29 @@
 #include <string>
 #include <chrono>
 
+class User;
+class UserInfo;
+class Article;
+class Category;
 class SystemLog;
 
 namespace dbo = Wt::Dbo;
 
+using Users = dbo::collection<dbo::ptr<User> >;
+using UserInfos = dbo::collection<dbo::ptr<UserInfo> >;
+using Categorys = dbo::collection<dbo::ptr<Category> >;
+using Articles = dbo::collection<dbo::ptr<Article> >;
 using Logs = dbo::collection< dbo::ptr<SystemLog> >;
+
+enum class UserStatus
+{
+
+};
+
+enum class UserRole
+{
+
+};
 
 static std::string GenerateUUID()
 {
@@ -27,7 +45,7 @@ static std::string GenerateUUID()
 	return std::move(boost::to_upper_copy<std::string>(uuid_string));
 }
 
-#define DISENABLE_DEFAULT_KEY(model) \
+#define DISABLE_DEFAULT_KEY(model) \
 namespace Wt \
 { \
     namespace Dbo \

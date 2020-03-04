@@ -29,4 +29,5 @@ int main(int argc, char* argv[])
         PLOG_ERROR << "System Error: " << ex.what();
         return -1;
     }
+	return 0;
 }

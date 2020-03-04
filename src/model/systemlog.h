@@ -10,11 +10,9 @@
 class SystemLog
 {
 public:
-    SystemLog() :
-	m_strId(GenerateUUID()),
-	m_unTid(0),
-	m_nLine(0),
-	m_severity(plog::Severity::none)
+	SystemLog() :
+		m_strId(GenerateUUID()), m_unTid(0),
+		m_nLine(0), m_severity(plog::Severity::none)
 	{
 	}
 
@@ -115,7 +113,6 @@ public:
 	plog::Severity m_severity;
 	std::chrono::system_clock::time_point m_unTime;
 };
-
-DISENABLE_DEFAULT_KEY(SystemLog);
+DISABLE_DEFAULT_KEY(SystemLog);
 
 #endif //_SYS_LOG_H

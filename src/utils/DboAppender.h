@@ -5,7 +5,7 @@
 #ifndef _DBOAPPENDER_H
 #define _DBOAPPENDER_H
 
-#include "../model/SystemLog.h"
+#include "../model/systemlog.h"
 #include <plog/Appenders/IAppender.h>
 
 class DboAppender : public plog::IAppender

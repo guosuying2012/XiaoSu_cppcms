@@ -177,14 +177,14 @@ public:
     }
     void act(const Wt::Dbo::FieldRef<std::chrono::system_clock::time_point>& field)
     {
-        m_writer.Key("time_stamp");
+        m_writer.Key(field.name()/*"time_stamp"*/);
         std::time_t t = std::chrono::system_clock::to_time_t(field.value());
         m_writer.Uint64(t);
 
-        std::stringstream ss;
+        /*std::stringstream ss;
         ss << std::put_time(std::localtime(&t), "%Y-%m-%d %H:%M:%S");
         m_writer.Key(field.name());
-        m_writer.String(ss.str());
+        m_writer.String(ss.str());*/
     }
     void act(const Wt::Dbo::FieldRef<std::chrono::duration<int, std::milli> >& field)
     {
