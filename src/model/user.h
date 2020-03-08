@@ -16,6 +16,11 @@ public:
 		m_strName.clear();
 	}
 
+	inline Articles getArticles() const
+	{
+		return this->m_vecArticles;
+	}
+
 public:
 	template<class Action>
 	void persist(Action& a)

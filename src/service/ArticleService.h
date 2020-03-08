@@ -15,10 +15,12 @@ public:
 
 private:
 	void article(const std::string& strArticleId);
-	void articleInfo(const std::string& strArticleId);
 
 	void allArticles();
 	void allArticles(int nPageSize, int nCurrentPage);
+
+	void allArticleByUser(const std::string& strUserId);
+	void allArticleByUser(const std::string& strUserId, int nPageSize, int nCurrentPage);
 
 	void allArticleByCategory(const std::string& strCategoryId);
 	void allArticleByCategory(const std::string& strCategoryId, int nPageSize, int nCurrentPage);
