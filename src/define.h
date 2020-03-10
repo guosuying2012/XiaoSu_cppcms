@@ -45,20 +45,4 @@ static std::string GenerateUUID()
 	return std::move(boost::to_upper_copy<std::string>(uuid_string));
 }
 
-#define DISABLE_DEFAULT_KEY(model) \
-namespace Wt \
-{ \
-    namespace Dbo \
-    { \
-        template<> struct dbo_traits<model> : public dbo_default_traits \
-        { \
-            typedef std::string IdType; \
-            static IdType invalidId() { return std::string(); } \
-            static const char* surrogateIdField() { return 0; } \
-            static const char* versionField() { return 0; } \
-        }; \
-        template<> struct dbo_traits<const model> : dbo_traits<model> {}; \
-    } \
-}
-
 #endif

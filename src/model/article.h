@@ -49,6 +49,5 @@ private:
 	std::chrono::system_clock::time_point m_unCreateTime;
 	std::chrono::system_clock::time_point m_unLastChange;
 };
-DISABLE_DEFAULT_KEY(Article);
 
 #endif //XIAOSU_ARTICLE_H

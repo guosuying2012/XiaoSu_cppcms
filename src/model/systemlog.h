@@ -113,6 +113,5 @@ public:
 	plog::Severity m_severity;
 	std::chrono::system_clock::time_point m_unTime;
 };
-DISABLE_DEFAULT_KEY(SystemLog);
 
 #endif //_SYS_LOG_H

@@ -12,8 +12,11 @@
 
 #include <cppcms/http_response.h>
 #include <cppcms/url_dispatcher.h>
-
 #include <exception>
+
+//test
+#include "../utils/JsonUnserializer.h"
+#include <cppcms/http_request.h>
 
 ArticleService::ArticleService(cppcms::service &srv)
 	: BaseService(srv)
@@ -24,7 +27,8 @@ ArticleService::ArticleService(cppcms::service &srv)
 
 	//根据分类获取文章列表
 	dispatcher().map("GET", "/all_article_by_category/page/(.*)/(\\d+)/(\\d+)", &ArticleService::allArticleByCategory, this, 1, 2, 3);
-	dispatcher().map("GET", "/all_article_by_category/(.*)", &ArticleService::allArticleByCategory, this, 1);
+	//test
+	dispatcher().map("POST", "/all_article_by_category/(.*)", &ArticleService::allArticleByCategory, this, 1);
 
 	//根据用户获取文章列表
 	dispatcher().map("GET", "/all_article_by_user/page/(.*)/(\\d+)/(\\d+)", &ArticleService::allArticleByUser, this, 1, 2, 3);
@@ -144,7 +148,21 @@ void ArticleService::allArticleByUser(const std::string &strUserId, int nPageSiz
 
 void ArticleService::allArticleByCategory(const std::string& strCategoryId)
 {
-	try
+    dbo::ptr<Category> pCategory;
+	JsonUnserializer jsonUnserializer;
+
+	std::string raw = (char*)request().raw_post_data().first;
+    jsonUnserializer.unserialize(raw, pCategory);
+    PLOG_INFO << raw;
+
+//    const std::unique_ptr<dbo::Session>& pSession = dbo_session();
+//    dbo::Transaction transaction(*pSession);
+//    dbo::ptr<Category> pUser = pSession->find<Category>()
+//            .where("category_id=?")
+//            .bind("28");
+    response().out() << json_serializer(pCategory, 200, "", "");
+
+	/*try
 	{
 		const std::unique_ptr<dbo::Session>& pSession = dbo_session();
 		dbo::Transaction transaction(*pSession);
@@ -163,7 +181,7 @@ void ArticleService::allArticleByCategory(const std::string& strCategoryId)
 	{
 		PLOG_ERROR << ex.what();
 		response().out() << json_serializer(500, action(), ex.what());
-	}
+	}*/
 }
 
 void ArticleService::allArticleByCategory(const std::string& strCategoryId, int nPageSize, int nCurrentPage)

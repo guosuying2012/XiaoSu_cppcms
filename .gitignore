@@ -36,3 +36,7 @@
 bin/
 
 cmake-build-debug/
+
+*.user
+
+build-debug/

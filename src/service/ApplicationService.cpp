@@ -8,9 +8,9 @@
 #include "../model/article.h"
 #include "../model/systemlog.h"
 
-#include "../utils/JsonSerializer.h"
-#include "ApplicationService.h"
 #include "ArticleService.h"
+#include "ApplicationService.h"
+#include "../utils/JsonSerializer.h"
 
 #include <cppcms/http_response.h>
 #include <cppcms/url_dispatcher.h>
@@ -27,10 +27,10 @@ ApplicationService::ApplicationService(cppcms::service& srv)
 		//map class
 	    const std::unique_ptr<dbo::Session>& pSession = dbo_session();
 		pSession->mapClass<User>("user");
-		pSession->mapClass<UserInfo>("user_info");
+        pSession->mapClass<UserInfo>("user_info");
 		pSession->mapClass<Article>("article");
-		pSession->mapClass<Category>("category");
-		pSession->mapClass<SystemLog>("sys_runtime_log");
+        pSession->mapClass<Category>("category");
+        pSession->mapClass<SystemLog>("sys_runtime_log");
 		pSession->createTables();
 	}
 	catch (const std::exception& ex)

@@ -40,6 +40,5 @@ private:
 	std::string m_strParentId;
 	std::string m_strCategoryName;
 };
-DISABLE_DEFAULT_KEY(Category);
 
 #endif //XIAOSU_CATEGORY_H
