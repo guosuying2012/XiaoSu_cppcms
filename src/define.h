@@ -45,4 +45,14 @@ static std::string GenerateUUID()
 	return std::move(boost::to_upper_copy<std::string>(uuid_string));
 }
 
+static int startsWith(const std::string& strSrc, const std::string& strSub)
+{
+    return strSrc.find(strSub) == 0 ? 1 : 0;
+}
+
+static int endsWith(const std::string& strSrc, const std::string& strSub)
+{
+    return strSrc.rfind(strSub) == (strSrc.length()-strSub.length()) ? 1 : 0;
+}
+
 #endif

@@ -40,3 +40,5 @@ cmake-build-debug/
 *.user
 
 build-debug/
+
+build-release/

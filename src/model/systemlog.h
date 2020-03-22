@@ -5,7 +5,7 @@
 #ifndef _SYS_LOG_H
 #define _SYS_LOG_H
 
-#include "../define.h"
+#include "define.h"
 
 class SystemLog
 {

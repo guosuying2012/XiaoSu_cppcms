@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 11)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 
+include_directories(src/)
+
 add_executable(xiaosu src/main.cpp src/define.h
         src/model/systemlog.h src/model/user.h src/model/userinfo.h
         src/model/article.h src/model/category.h

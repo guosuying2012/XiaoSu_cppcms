@@ -131,7 +131,7 @@ public:
     {
         //枚举类型
         m_writer.Key(field.name());
-        m_writer.Int(field.value());
+        m_writer.Int((int)field.value());
     }
 
     //各种类型
@@ -225,7 +225,8 @@ public:
         Wt::Dbo::ptr<T> v = field.value().query();
         if (v)
         {
-            serialize(v);
+            //serialize(v);
+            m_writer.String(v.id());
         }
         else
         {
@@ -236,9 +237,14 @@ public:
     template<typename T>
     void actCollection(const Wt::Dbo::CollectionRef<T>& collec)
     {
+        if (m_pSession == nullptr)
+        {
+            return;
+        }
+
         if (collec.type() == Wt::Dbo::ManyToOne)
         {
-            Wt::Dbo::collection<Wt::Dbo::ptr<T> > c = collec.value();
+            const Wt::Dbo::collection<Wt::Dbo::ptr<T> >& c = collec.value();
             m_writer.Key(m_pSession->tableName<T>() + std::string("s"));
             m_writer.StartArray();
             for (typename Wt::Dbo::collection<Wt::Dbo::ptr<T> >::const_iterator i = c.begin(); i != c.end(); ++i)

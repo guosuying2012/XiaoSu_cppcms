@@ -5,7 +5,7 @@
 #ifndef XIAOSU_BASESERVICE_H
 #define XIAOSU_BASESERVICE_H
 
-#include "../utils/DboInstence.h"
+#include "utils/DboInstence.h"
 #include <string>
 #include <cppcms/application.h>
 #include <cppcms/string_key.h>

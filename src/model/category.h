@@ -5,7 +5,7 @@
 #ifndef XIAOSU_CATEGORY_H
 #define XIAOSU_CATEGORY_H
 
-#include "../define.h"
+#include "define.h"
 
 class Category
 {

@@ -5,7 +5,7 @@
 #ifndef XIAOSU_ARTICLE_H
 #define XIAOSU_ARTICLE_H
 
-#include "../define.h"
+#include "define.h"
 
 class Article
 {
@@ -21,6 +21,66 @@ public:
 		m_strDescribe.clear();
 	}
 
+    inline dbo::ptr<User> user() const
+    {
+        return m_pUser;
+    }
+
+    inline void user(const dbo::ptr<User> &pUser)
+    {
+        m_pUser = pUser;
+    }
+
+    inline dbo::ptr<Category> category() const
+    {
+        return m_pCategory;
+    }
+
+    inline void category(const dbo::ptr<Category> &pCategory)
+    {
+        m_pCategory = pCategory;
+    }
+
+    std::string title() const
+    {
+        return m_strTitle;
+    }
+
+    void title(const std::string &strTitle)
+    {
+        m_strTitle = strTitle;
+    }
+
+    std::string cover() const
+    {
+        return m_strCover;
+    }
+
+    void cover(const std::string &strCover)
+    {
+        m_strCover = strCover;
+    }
+
+    std::string content() const
+    {
+        return m_strContent;
+    }
+
+    void content(const std::string &strContent)
+    {
+        m_strContent = strContent;
+    }
+
+    std::string describe() const
+    {
+        return m_strDescribe;
+    }
+
+    void describe(const std::string &strDescribe)
+    {
+        m_strDescribe = strDescribe;
+    }
+
 public:
 	template<class Action>
 	void persist(Action& a)
@@ -35,15 +95,15 @@ public:
 		dbo::field(a, m_unCreateTime, "article_time");
 		dbo::field(a, m_unLastChange, "article_last_change");
 		dbo::field(a, m_bApprovalStatus, "article_approval_status", 1);
-	}
+    }
 
 private:
-	std::string m_strId;
-	bool m_bApprovalStatus;
-	std::string m_strTitle;
-	std::string m_strCover;
-	dbo::ptr<User> m_pUser;
-	std::string m_strContent;
+    std::string m_strId;
+    bool m_bApprovalStatus;
+    std::string m_strTitle;
+    std::string m_strCover;
+    dbo::ptr<User> m_pUser;
+    std::string m_strContent;
 	std::string m_strDescribe;
 	dbo::ptr<Category> m_pCategory;
 	std::chrono::system_clock::time_point m_unCreateTime;

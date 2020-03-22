@@ -5,6 +5,7 @@
 #ifndef XIAOSU_JSONUNSERIALIZER_H
 #define XIAOSU_JSONUNSERIALIZER_H
 
+#include "define.h"
 #include "DboInstence.h"
 
 #include <Wt/Dbo/ptr.h>
@@ -37,9 +38,10 @@ public:
 		{
 			return;
 		}
+
 		if (!t)
 		{
-			t = boost::make_unique<T>();
+            t = Wt::Dbo::make_ptr<T>();
 		}
 		const_cast<T&>(*t).persist(*this);
 	}
@@ -64,6 +66,10 @@ public:
 	{
 		if (m_Document.HasMember(field.name()) && m_Document[field.name()].IsString())
 		{
+            if (endsWith(field.name(), "_id"))
+            {
+                return;
+            }
 			field.setValue(m_Document[field.name()].GetString());
 		}
 	}
@@ -95,11 +101,11 @@ public:
 			field.setValue(m_Document[field.name()].GetInt());
 		}
 	}
-	void act(const Wt::Dbo::FieldRef<bool>& field)
+    void act(const Wt::Dbo::FieldRef<bool>& field)  //一般表示状态
 	{
-		if (m_Document.HasMember(field.name()) && m_Document[field.name()].IsBool())
+        //if (m_Document.HasMember(field.name()) && m_Document[field.name()].IsBool())
 		{
-			field.setValue(m_Document[field.name()].GetBool());
+            //field.setValue(m_Document[field.name()].GetBool());
 		}
 	}
 	void act(const Wt::Dbo::FieldRef<float>& field)
@@ -116,13 +122,13 @@ public:
 			field.setValue(m_Document[field.name()].GetDouble());
 		}
 	}
-	void act(const Wt::Dbo::FieldRef<std::chrono::system_clock::time_point>& field)
+    void act(const Wt::Dbo::FieldRef<std::chrono::system_clock::time_point>& field)//一般表示创建时间或操作时间
 	{
-		if (m_Document.HasMember(field.name()) && m_Document[field.name()].IsNumber())
-		{
-			const uint64_t& nTime = m_Document[field.name()].GetUint64();
-			field.setValue(std::chrono::system_clock::from_time_t(nTime));
-		}
+        //if (m_Document.HasMember(field.name()) && m_Document[field.name()].IsNumber())
+        {
+            //const uint64_t& nTime = m_Document[field.name()].GetUint64();
+            //field.setValue(std::chrono::system_clock::from_time_t(nTime));
+        }
 	}
 	void act(const Wt::Dbo::FieldRef<std::chrono::duration<int, std::milli> >& field)
 	{
@@ -144,21 +150,82 @@ public:
 	template<typename T>
 	void actPtr(const Wt::Dbo::PtrRef<T>& field)
     {
+        std::string& strFieldName = const_cast<std::string&>(field.name());
+        if (m_Document.HasMember(strFieldName) && m_Document[strFieldName].IsString())
+        {
+            try
+            {
+                const std::string& strID = m_Document[strFieldName].GetString();
+                const std::unique_ptr<dbo::Session>& pSession = DboSingleton::GetInstance().GetSession();
+                dbo::Transaction transaction(*pSession);
+
+                Wt::Dbo::ptr<T> pObj = DboSingleton::GetInstance().GetSession()->find<T>()
+                        .where(strFieldName.append("=?"))
+                        .bind(strID);
+
+                if (pObj)
+                {
+                    field.value() = boost::make_unique<T>();
+                    field.value() = pObj;
+                }
+                else
+                {
+                    field.value() = nullptr;
+                }
+            }
+            catch (const std::exception& ex)
+            {
+                PLOG_ERROR << ex.what();
+            }
+        }
 	}
 
 	template<typename T>
 	void actWeakPtr(const Wt::Dbo::WeakPtrRef<T>& field)
     {
+        /*std::string& strFieldName = const_cast<std::string&>(field.joinName());
+        if (m_Document.HasMember(strFieldName) && m_Document[strFieldName].IsString())
+        {
+            try
+            {
+                const std::string& strID = m_Document[strFieldName].GetString();
+                const std::unique_ptr<dbo::Session>& pSession = DboSingleton::GetInstance().GetSession();
+                dbo::Transaction transaction(*pSession);
+
+                Wt::Dbo::ptr<T> pObj = DboSingleton::GetInstance().GetSession()->find<T>()
+                        .where(strFieldName.append("=?"))
+                        .bind(strID);
+
+                if (pObj)
+                {
+                    field.value() = boost::make_unique<T>();
+                }
+                else
+                {
+                    field.value() = nullptr;
+                }
+            }
+            catch (const std::exception& ex)
+            {
+                PLOG_ERROR << ex.what();
+            }
+        }*/
 	}
 
 	template<typename T>
 	void actCollection(const Wt::Dbo::CollectionRef<T>& collec)
-	{
+    {
 	}
 
 private:
 	rapidjson::Document m_Document;
 };
 
+template<typename C>
+void json_unserializer(const std::string& strJson, C& pObject)
+{
+    JsonUnserializer serializer;
+    serializer.unserialize(strJson, pObject);
+}
 
 #endif //XIAOSU_JSONUNSERIALIZER_H

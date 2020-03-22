@@ -3,7 +3,7 @@
 //
 
 #include "BaseService.h"
-#include "../utils/JsonSerializer.h"
+#include "utils/JsonSerializer.h"
 
 #include <cppcms/http_response.h>
 #include <cppcms/url_dispatcher.h>

@@ -2,15 +2,15 @@
 // Created by yengsu on 2020/1/23.
 //
 
-#include "../model/user.h"
-#include "../model/userinfo.h"
-#include "../model/category.h"
-#include "../model/article.h"
-#include "../model/systemlog.h"
+#include "model/user.h"
+#include "model/userinfo.h"
+#include "model/category.h"
+#include "model/article.h"
+#include "model/systemlog.h"
 
 #include "ArticleService.h"
-#include "ApplicationService.h"
-#include "../utils/JsonSerializer.h"
+#include "service/ApplicationService.h"
+#include "utils/JsonSerializer.h"
 
 #include <cppcms/http_response.h>
 #include <cppcms/url_dispatcher.h>
@@ -35,7 +35,7 @@ ApplicationService::ApplicationService(cppcms::service& srv)
 	}
 	catch (const std::exception& ex)
 	{
-		PLOG_DEBUG << ex.what();
+        //PLOG_DEBUG << ex.what();
 	}
 }
 

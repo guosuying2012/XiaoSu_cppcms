@@ -5,7 +5,7 @@
 #ifndef XIAOSU_USER_H
 #define XIAOSU_USER_H
 
-#include "../define.h"
+#include "define.h"
 
 class User
 {
@@ -27,7 +27,7 @@ public:
 	{
 		dbo::id(a, m_strId, "user_id", 36);
 		dbo::field(a, m_nRole, "user_role", 2);
-        dbo::hasOne(a, m_pUserInfo, "user_id");
+        dbo::hasOne(a, m_pUserInfo, "info_id");
         dbo::field(a, m_strName, "user_name", 15);
 		dbo::field(a, m_nStatus, "user_status", 2);
         dbo::field(a, m_strDisplayName, "user_display_name", 20);

@@ -14,16 +14,22 @@ public:
 	~ArticleService() override = default;
 
 private:
+    void add_article();
+
+    void move_to(const std::string strArticleId, const std::string& strMoveTo, const std::string strId);
+
+    void delete_article(const std::string& strId);
+
 	void article(const std::string& strArticleId);
 
-	void allArticles();
-	void allArticles(int nPageSize, int nCurrentPage);
+    void all_articles();
+    void all_articles(int nPageSize, int nCurrentPage);
 
-	void allArticleByUser(const std::string& strUserId);
-	void allArticleByUser(const std::string& strUserId, int nPageSize, int nCurrentPage);
+    void all_article_by_user(const std::string& strUserId);
+    void all_article_by_user(const std::string& strUserId, int nPageSize, int nCurrentPage);
 
-	void allArticleByCategory(const std::string& strCategoryId);
-	void allArticleByCategory(const std::string& strCategoryId, int nPageSize, int nCurrentPage);
+    void all_article_by_category(const std::string& strCategoryId);
+    void all_article_by_category(const std::string& strCategoryId, int nPageSize, int nCurrentPage);
 };
 
 
