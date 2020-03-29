@@ -65,11 +65,11 @@ void ArticleService::article(const std::string& strArticleId)
         {
             if (!pArticle)
             {
-                response().out() << json_serializer(301, action(), "article not found");
+                response().out() << json_serializer(cppcms::http::response::not_found, action(), "article not found");
                 return;
             }
 
-            response().out() << json_serializer(pArticle, 200, action(), "success");
+            response().out() << json_serializer(pArticle, cppcms::http::response::ok, action(), "success");
             return;
         }
 
@@ -92,7 +92,7 @@ void ArticleService::article(const std::string& strArticleId)
         {
             if (request().raw_post_data().second <= 0)
             {
-                response().out() << json_serializer(400, action(), "修改失败");
+                response().out() << json_serializer(cppcms::http::response::precondition_failed, action(), "修改失败");
                 return;
             }
 
@@ -124,13 +124,13 @@ void ArticleService::article(const std::string& strArticleId)
                 pArticle.modify()->describe(pModify->describe());
             }
 
-            response().out() << json_serializer(200, action(), translate("修改成功"));
+            response().out() << json_serializer(cppcms::http::response::ok, action(), translate("修改成功"));
         }
     }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(500, action(), ex.what());
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), ex.what());
     }
 
 }
@@ -146,7 +146,7 @@ void ArticleService::add_article()
 
         if (request().raw_post_data().second <= 0)
         {
-            response().out() << json_serializer(400, action(), translate("添加失败,未收到需要添加的内容。"));
+            response().out() << json_serializer(cppcms::http::response::precondition_failed, action(), translate("添加失败,未收到需要添加的内容。"));
             return;
         }
 
@@ -156,12 +156,12 @@ void ArticleService::add_article()
         //判断有效性
         if (!pArticle->category())
         {
-            response().out() << json_serializer(400, action(), translate("添加失败,未找到分类。"));
+            response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("添加失败,未找到分类。"));
             return;
         }
         if (!pArticle->user())
         {
-            response().out() << json_serializer(400, action(), translate("添加失败,未找到用户。"));
+            response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("添加失败,未找到用户。"));
             return;
         }
 
@@ -169,17 +169,17 @@ void ArticleService::add_article()
         dbo::ptr<Article> pAddedPtr = pSession->add<Article>(pArticle);
         if (pAddedPtr)
         {
-            response().out() << json_serializer(pAddedPtr, 200, action(), translate("添加成功"));
+            response().out() << json_serializer(pAddedPtr, cppcms::http::response::created, action(), translate("添加成功"));
         }
         else
         {
-            response().out() << json_serializer(501, action(), translate("添加失败"));
+            response().out() << json_serializer(cppcms::http::response::precondition_failed, action(), translate("添加失败"));
         }
     }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(500, action(), translate(ex.what()));
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
     }
 }
 
@@ -194,17 +194,17 @@ void ArticleService::delete_article(const std::string& strId)
         if (!pArticle)
         {
             //失败，未找到相关
-            response().out() << json_serializer(501, action(), translate("删除失败,未找到博文."));
+            response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("删除失败,未找到博文."));
             return;
         }
 
         pArticle.remove();
-        response().out() << json_serializer(501, action(), translate("删除成功"));
+        response().out() << json_serializer(cppcms::http::response::ok, action(), translate("删除成功"));
     }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(500, action(), translate(ex.what()));
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
     }
 }
 
@@ -219,7 +219,7 @@ void ArticleService::move_to(const std::string strArticleId, const std::string& 
         if (!pArticle)
         {
             //失败，未找到相关
-            response().out() << json_serializer(501, action(), translate("移动失败,未找到博文."));
+            response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("移动失败,未找到博文."));
             return;
         }
 
@@ -229,7 +229,7 @@ void ArticleService::move_to(const std::string strArticleId, const std::string& 
             if (!pUser)
             {
                 //未找到相关
-                response().out() << json_serializer(501, action(), translate("移动失败,未找到用户"));
+                response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("移动失败,未找到用户"));
                 return;
             }
 
@@ -242,19 +242,19 @@ void ArticleService::move_to(const std::string strArticleId, const std::string& 
             if (!pCategory)
             {
                 //未找到相关
-                response().out() << json_serializer(501, action(), translate("移动失败,未找到分类"));
+                response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("移动失败,未找到分类"));
                 return;
             }
 
             pArticle.modify()->category(pCategory);
         }
 
-        response().out() << json_serializer(200, action(), translate("移动成功"));
+        response().out() << json_serializer(cppcms::http::response::ok, action(), translate("移动成功"));
     }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(500, action(), translate(ex.what()));
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
     }
 }
 
@@ -265,12 +265,12 @@ void ArticleService::all_articles()
 		const std::unique_ptr<dbo::Session>& pSession = dbo_session();
 		dbo::Transaction transaction(*pSession);
 		Articles vecArticles = pSession->find<Article>();
-		response().out() << json_serializer(vecArticles, 200, action(), translate("success!"));
+        response().out() << json_serializer(vecArticles, cppcms::http::response::ok, action(), translate("success!"));
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-		response().out() << json_serializer(500, action(), translate(ex.what()));
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
 	}
 }
 
@@ -285,12 +285,12 @@ void ArticleService::all_articles(int nPageSize, int nCurrentPage)
 		        .offset((nCurrentPage -1 ) * nPageSize)
 		        .limit(nPageSize);
 
-		response().out() << json_serializer(vecArticles, 200, action(), translate("success!"));
+        response().out() << json_serializer(vecArticles, cppcms::http::response::ok, action(), translate("success!"));
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-		response().out() << json_serializer(500, action(), translate(ex.what()));
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
 	}
 }
 
@@ -305,16 +305,16 @@ void ArticleService::all_article_by_user(const std::string &strUserId)
 
         if (!pUser)
 		{
-			response().out() << json_serializer(301, action(), translate("指定用户不存在"));
+            response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("指定用户不存在"));
 			return;
 		}
 
-		response().out() << json_serializer(pUser->getArticles(), 200, action(), translate("success!"));
+        response().out() << json_serializer(pUser->getArticles(), cppcms::http::response::ok, action(), translate("success!"));
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-		response().out() << json_serializer(500, action(), translate(ex.what()));
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
 	}
 }
 
@@ -331,12 +331,12 @@ void ArticleService::all_article_by_user(const std::string &strUserId, int nPage
 				.offset((nCurrentPage -1 ) * nPageSize)
 				.limit(nPageSize);
 
-		response().out() << json_serializer(vecArticles, 200, action(), translate("success!"));
+        response().out() << json_serializer(vecArticles, cppcms::http::response::ok, action(), translate("success!"));
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-		response().out() << json_serializer(500, action(), translate(ex.what()));
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
 	}
 }
 
@@ -351,16 +351,16 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId)
 
         if (!pCategory)
         {
-            response().out() << json_serializer(301, action(), translate("没有找到相关分类"));
+            response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("没有找到相关分类"));
             return;
         }
 
-        response().out() << json_serializer(pCategory->getArticles(), 200, action(), translate("success!"));
+        response().out() << json_serializer(pCategory->getArticles(), cppcms::http::response::ok, action(), translate("success!"));
     }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(500, action(), translate(ex.what()));
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
     }
 }
 
@@ -377,11 +377,11 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId, i
 				.offset((nCurrentPage -1 ) * nPageSize)
 				.limit(nPageSize);
 
-		response().out() << json_serializer(vecArticles, 200, action(), translate("success!"));
+        response().out() << json_serializer(vecArticles, cppcms::http::response::ok, action(), translate("success!"));
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-		response().out() << json_serializer(500, action(), translate(ex.what()));
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
 	}
 }
