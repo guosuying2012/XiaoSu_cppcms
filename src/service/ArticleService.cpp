@@ -98,6 +98,12 @@ void ArticleService::article(const std::string& strArticleId)
             return;
         }
 
+        if (!pArticle)
+        {
+            response().out() << json_serializer(response::not_found, action(), "未找到博客");
+            return;
+        }
+
         //修改
         if (request().request_method() == "PUT")
         {
@@ -133,7 +139,9 @@ void ArticleService::add_article()
     const jwt::decoded_jwt decoded(strToken);
     try
     {
-        auto verify = jwt::verify().allow_algorithm(jwt::algorithm::hs256{"yengsu"}).with_issuer("yengsu");
+        auto verify = jwt::verify()
+                .allow_algorithm(jwt::algorithm::hs256{authorization_secret()})
+                .with_issuer(authorization_issuer());
         verify.verify(decoded);
     }
     catch (const std::exception& ex)
@@ -213,7 +221,7 @@ void ArticleService::add_article()
     }
 }
 
-void ArticleService::modify_article(dbo::ptr<Article> pArticle)
+void ArticleService::modify_article(dbo::ptr<Article>& pArticle)
 {
     bool bIsAdmin = false;
 
@@ -222,7 +230,9 @@ void ArticleService::modify_article(dbo::ptr<Article> pArticle)
     jwt::decoded_jwt decoded(strToken);
     try
     {
-        auto verify = jwt::verify().allow_algorithm(jwt::algorithm::hs256{"yengsu"}).with_issuer("yengsu");
+        auto verify = jwt::verify()
+                .allow_algorithm(jwt::algorithm::hs256{authorization_secret()})
+                .with_issuer(authorization_issuer());
         verify.verify(decoded);
     }
     catch (const std::exception& ex)
@@ -230,6 +240,13 @@ void ArticleService::modify_article(dbo::ptr<Article> pArticle)
         //捕捉到TOKEN不合法，不能放行
         PLOG_ERROR << ex.what() << " : " << strToken;
         response().out() << json_serializer(response::unauthorized, action(), ex.what());
+        return;
+    }
+
+    if (!pArticle)
+    {
+        //失败，未找到相关
+        response().out() << json_serializer(response::not_found, action(), "修改失败,未找到该博文");
         return;
     }
 
@@ -255,13 +272,6 @@ void ArticleService::modify_article(dbo::ptr<Article> pArticle)
 
     try
     {
-        if (!pArticle)
-        {
-            //失败，未找到相关
-            response().out() << json_serializer(response::not_found, action(), "修改失败,未找到该博文");
-            return;
-        }
-
         char strBuffer[request().raw_post_data().second + 1];
         memcpy(strBuffer, static_cast<char*>(request().raw_post_data().first), request().raw_post_data().second);
         dbo::ptr<Article> pModify = dbo::make_ptr<Article>();
@@ -302,7 +312,7 @@ void ArticleService::modify_article(dbo::ptr<Article> pArticle)
     }
 }
 
-void ArticleService::delete_article(dbo::ptr<Article> pArticle)
+void ArticleService::delete_article(dbo::ptr<Article>& pArticle)
 {
     bool bIsAdmin = false;
 
@@ -311,7 +321,9 @@ void ArticleService::delete_article(dbo::ptr<Article> pArticle)
     jwt::decoded_jwt decoded(strToken);
     try
     {
-        auto verify = jwt::verify().allow_algorithm(jwt::algorithm::hs256{"yengsu"}).with_issuer("yengsu");
+        auto verify = jwt::verify()
+                .allow_algorithm(jwt::algorithm::hs256{authorization_secret()})
+                .with_issuer(authorization_issuer());
         verify.verify(decoded);
     }
     catch (const std::exception& ex)
@@ -319,6 +331,13 @@ void ArticleService::delete_article(dbo::ptr<Article> pArticle)
         //捕捉到TOKEN不合法，不能放行
         PLOG_ERROR << ex.what();
         response().out() << json_serializer(response::unauthorized, action(), ex.what());
+        return;
+    }
+
+    if (!pArticle)
+    {
+        //失败，未找到相关
+        response().out() << json_serializer(response::not_found, action(), "删除失败,未找到博文.");
         return;
     }
 
@@ -344,13 +363,6 @@ void ArticleService::delete_article(dbo::ptr<Article> pArticle)
 
     try
     {
-        if (!pArticle)
-        {
-            //失败，未找到相关
-            response().out() << json_serializer(response::not_found, action(), "删除失败,未找到博文.");
-            return;
-        }
-
         pArticle.remove();
         response().out() << json_serializer(response::ok, action(), "删除成功");
     }
@@ -379,7 +391,9 @@ void ArticleService::move_to(const std::string strArticleId, const std::string& 
     jwt::decoded_jwt decoded(strToken);
     try
     {
-        auto verify = jwt::verify().allow_algorithm(jwt::algorithm::hs256{"yengsu"}).with_issuer("yengsu");
+        auto verify = jwt::verify()
+                .allow_algorithm(jwt::algorithm::hs256{authorization_secret()})
+                .with_issuer(authorization_issuer());
         verify.verify(decoded);
     }
     catch (const std::exception& ex)

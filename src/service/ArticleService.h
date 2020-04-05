@@ -17,8 +17,8 @@ public:
 
 private:
     void add_article();
-    void modify_article(Wt::Dbo::ptr<Article> pArticle);
-    void delete_article(Wt::Dbo::ptr<Article> pArticle);
+    void modify_article(Wt::Dbo::ptr<Article>& pArticle);
+    void delete_article(Wt::Dbo::ptr<Article>& pArticle);
     void move_to(const std::string strArticleId, const std::string& strMoveTo, const std::string strId);
 
 	void article(const std::string& strArticleId);
