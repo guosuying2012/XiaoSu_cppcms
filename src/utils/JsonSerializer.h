@@ -21,7 +21,7 @@ class JsonSerializer
 {
 public:
     JsonSerializer(int nStatus, const std::string& strAction, const std::string& strMsg)
-    :m_writer(m_buffer), m_pSession(nullptr)
+    :m_pSession(nullptr), m_writer(m_buffer)
     {
         m_writer.StartObject();
         m_writer.Key("action");
@@ -186,7 +186,7 @@ public:
         m_writer.Key(field.name());
         m_writer.String(ss.str());*/
     }
-    void act(const Wt::Dbo::FieldRef<std::chrono::duration<int, std::milli> >& field)
+    void act(const Wt::Dbo::FieldRef<std::chrono::duration<int, std::milli> >& __attribute__((unused)) field)
     {
         //表示时间段
         //m_writer.Key(field.name());
@@ -199,7 +199,7 @@ public:
     }
 
     template<typename T>
-    inline void actId(Wt::Dbo::ptr<T>& value, const std::string& name, int size, int fkConstraints)
+    inline void actId(Wt::Dbo::ptr<T>& value, const std::string& name, int size, int __attribute__((unused)) fkConstraints)
     {
         Wt::Dbo::field(*this, value, name, size);
     }
