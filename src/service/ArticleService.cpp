@@ -14,6 +14,7 @@
 #include <cppcms/http_request.h>
 #include <cppcms/http_response.h>
 #include <cppcms/url_dispatcher.h>
+
 #include <exception>
 
 ArticleService::ArticleService(cppcms::service &srv)
@@ -65,25 +66,23 @@ void ArticleService::article(const std::string& strArticleId)
         {
             if (!pArticle)
             {
-                response().out() << json_serializer(cppcms::http::response::not_found, action(), "article not found");
+                response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("未找到博客"));
                 return;
             }
 
-            response().out() << json_serializer(pArticle, cppcms::http::response::ok, action(), "success");
+            response().out() << json_serializer(pArticle, cppcms::http::response::ok, action(), translate("获取成功"));
             return;
         }
 
         //添加
         if (request().request_method() == "POST")
         {
+            if (request().raw_post_data().second <= 0)
+            {
+                response().out() << json_serializer(cppcms::http::response::precondition_failed, action(), translate("添加失败,未收到需要添加的内容。"));
+                return;
+            }
             add_article();
-            return;
-        }
-
-        //删除
-        if (request().request_method() == "DELETE")
-        {
-            delete_article(strArticleId);
             return;
         }
 
@@ -95,36 +94,15 @@ void ArticleService::article(const std::string& strArticleId)
                 response().out() << json_serializer(cppcms::http::response::precondition_failed, action(), "修改失败");
                 return;
             }
+            modify_article(pArticle);
+            return;
+        }
 
-            const std::string& strRaw = static_cast<char*>(request().raw_post_data().first);
-            dbo::ptr<Article> pModify = dbo::make_ptr<Article>();
-            json_unserializer(strRaw, pModify);
-            if (pModify->user())//用户
-            {
-                pArticle.modify()->user(pModify->user());
-            }
-            if (pModify->category())//分类
-            {
-                pArticle.modify()->category(pModify->category());
-            }
-            if (!pModify->title().empty())//标题
-            {
-                pArticle.modify()->title(pModify->title());
-            }
-            if (!pModify->cover().empty())//封面
-            {
-                pArticle.modify()->cover(pModify->cover());
-            }
-            if (!pModify->content().empty())//正文
-            {
-                pArticle.modify()->content(pModify->content());
-            }
-            if (!pModify->describe().empty())//简介
-            {
-                pArticle.modify()->describe(pModify->describe());
-            }
-
-            response().out() << json_serializer(cppcms::http::response::ok, action(), translate("修改成功"));
+        //删除
+        if (request().request_method() == "DELETE")
+        {
+            delete_article(pArticle);
+            return;
         }
     }
     catch (const std::exception& ex)
@@ -132,7 +110,6 @@ void ArticleService::article(const std::string& strArticleId)
         PLOG_ERROR << ex.what();
         response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), ex.what());
     }
-
 }
 
 void ArticleService::add_article()
@@ -141,17 +118,11 @@ void ArticleService::add_article()
     {
         const std::unique_ptr<dbo::Session>& pSession = dbo_session();
         dbo::Transaction transaction(*pSession);
-
         dbo::ptr<Article> pArticle = dbo::make_ptr<Article>();
 
-        if (request().raw_post_data().second <= 0)
-        {
-            response().out() << json_serializer(cppcms::http::response::precondition_failed, action(), translate("添加失败,未收到需要添加的内容。"));
-            return;
-        }
-
-        const std::string& strRaw = static_cast<char*>(request().raw_post_data().first);
-        json_unserializer(strRaw, pArticle);
+        char strBuffer[request().raw_post_data().second + 1];
+        memcpy(strBuffer, static_cast<char*>(request().raw_post_data().first), request().raw_post_data().second);
+        json_unserializer(strBuffer, pArticle);
 
         //判断有效性
         if (!pArticle->category())
@@ -162,6 +133,14 @@ void ArticleService::add_article()
         if (!pArticle->user())
         {
             response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("添加失败,未找到用户。"));
+            return;
+        }
+
+        //通过标题判断重复提交
+        Articles articles = pSession->find<Article>().where("article_title=?").bind(pArticle->title());
+        if (articles.size() > 0)
+        {
+            response().out() << json_serializer(cppcms::http::response::found, action(), translate("添加失败,博客已存在"));
             return;
         }
 
@@ -183,14 +162,60 @@ void ArticleService::add_article()
     }
 }
 
-void ArticleService::delete_article(const std::string& strId)
+void ArticleService::modify_article(dbo::ptr<Article> pArticle)
 {
     try
     {
-        const std::unique_ptr<dbo::Session>& pSession = dbo_session();
-        dbo::Transaction transaction(*pSession);
+        if (!pArticle)
+        {
+            //失败，未找到相关
+            response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("修改失败,未找到博文."));
+            return;
+        }
 
-        dbo::ptr<Article> pArticle = pSession->find<Article>().where("article_id=?").bind(strId);
+        char strBuffer[request().raw_post_data().second + 1];
+        memcpy(strBuffer, static_cast<char*>(request().raw_post_data().first), request().raw_post_data().second);
+        dbo::ptr<Article> pModify = dbo::make_ptr<Article>();
+        json_unserializer(strBuffer, pModify);
+
+        if (pModify->user())//用户
+        {
+            pArticle.modify()->user(pModify->user());
+        }
+        if (pModify->category())//分类
+        {
+            pArticle.modify()->category(pModify->category());
+        }
+        if (!pModify->title().empty())//标题
+        {
+            pArticle.modify()->title(pModify->title());
+        }
+        if (!pModify->cover().empty())//封面
+        {
+            pArticle.modify()->cover(pModify->cover());
+        }
+        if (!pModify->content().empty())//正文
+        {
+            pArticle.modify()->content(pModify->content());
+        }
+        if (!pModify->describe().empty())//简介
+        {
+            pArticle.modify()->describe(pModify->describe());
+        }
+
+        response().out() << json_serializer(cppcms::http::response::ok, action(), translate("修改成功"));
+    }
+    catch (const std::exception& ex)
+    {
+        PLOG_ERROR << ex.what();
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
+    }
+}
+
+void ArticleService::delete_article(dbo::ptr<Article> pArticle)
+{
+    try
+    {
         if (!pArticle)
         {
             //失败，未找到相关
@@ -254,7 +279,7 @@ void ArticleService::move_to(const std::string strArticleId, const std::string& 
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), ex.what());
     }
 }
 
@@ -265,12 +290,12 @@ void ArticleService::all_articles()
 		const std::unique_ptr<dbo::Session>& pSession = dbo_session();
 		dbo::Transaction transaction(*pSession);
 		Articles vecArticles = pSession->find<Article>();
-        response().out() << json_serializer(vecArticles, cppcms::http::response::ok, action(), translate("success!"));
+        response().out() << json_serializer(vecArticles, cppcms::http::response::ok, action(), translate("获取成功"));
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), ex.what());
 	}
 }
 
@@ -285,12 +310,12 @@ void ArticleService::all_articles(int nPageSize, int nCurrentPage)
 		        .offset((nCurrentPage -1 ) * nPageSize)
 		        .limit(nPageSize);
 
-        response().out() << json_serializer(vecArticles, cppcms::http::response::ok, action(), translate("success!"));
+        response().out() << json_serializer(vecArticles, cppcms::http::response::ok, action(), translate("获取成功"));
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), ex.what());
 	}
 }
 
@@ -309,12 +334,12 @@ void ArticleService::all_article_by_user(const std::string &strUserId)
 			return;
 		}
 
-        response().out() << json_serializer(pUser->getArticles(), cppcms::http::response::ok, action(), translate("success!"));
+        response().out() << json_serializer(pUser->getArticles(), cppcms::http::response::ok, action(), translate("获取成功"));
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), ex.what());
 	}
 }
 
@@ -331,12 +356,12 @@ void ArticleService::all_article_by_user(const std::string &strUserId, int nPage
 				.offset((nCurrentPage -1 ) * nPageSize)
 				.limit(nPageSize);
 
-        response().out() << json_serializer(vecArticles, cppcms::http::response::ok, action(), translate("success!"));
+        response().out() << json_serializer(vecArticles, cppcms::http::response::ok, action(), translate("获取成功"));
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), ex.what());
 	}
 }
 
@@ -355,12 +380,12 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId)
             return;
         }
 
-        response().out() << json_serializer(pCategory->getArticles(), cppcms::http::response::ok, action(), translate("success!"));
+        response().out() << json_serializer(pCategory->getArticles(), cppcms::http::response::ok, action(), translate("获取成功"));
     }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), ex.what());
     }
 }
 
@@ -377,11 +402,11 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId, i
 				.offset((nCurrentPage -1 ) * nPageSize)
 				.limit(nPageSize);
 
-        response().out() << json_serializer(vecArticles, cppcms::http::response::ok, action(), translate("success!"));
+        response().out() << json_serializer(vecArticles, cppcms::http::response::ok, action(), translate("获取成功"));
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
+        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), ex.what());
 	}
 }

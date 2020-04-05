@@ -19,7 +19,7 @@ int main(int argc, char* argv[])
 
         //static DboAppender dbo;
         cppcms::service srv(argc,argv);
-        DboSingleton::GetInstance(srv.settings());
+        DboInstance::Instance().Session(srv.settings());
         srv.applications_pool().mount(cppcms::applications_factory<ApplicationService>());
         //plog::init<plog::TxtFormatter>(plog::verbose, "runtime.log").addAppender(&dbo);
         srv.run();

@@ -3,6 +3,7 @@
 #ifndef _DBOINSTENCE_H
 #define _DBOINSTENCE_H
 
+#include "utils/singleton.h"
 #include <Wt/Dbo/Dbo.h>
 #include <cppcms/json.h>
 #include <Wt/Dbo/Session.h>
@@ -10,42 +11,40 @@
 #include <Wt/Dbo/backend/MySQL.h>
 #include <Wt/Dbo/FixedSqlConnectionPool.h>
 
-class DboSingleton
+class DboInstance : public Singleton<DboInstance>
 {
 public:
-	static DboSingleton& GetInstance(const cppcms::json::value& setting = cppcms::json::value())
-	{
-		static DboSingleton dboSingleton(setting);
-		return dboSingleton;
-	}
+    friend Singleton<DboInstance>;
 
-	std::unique_ptr<Wt::Dbo::Session>& GetSession()
-	{
+    std::unique_ptr<Wt::Dbo::Session>& Session(const cppcms::json::value& setting = cppcms::json::value())
+    {
+        if (setting.is_null() || setting.is_undefined())
+        {
+            return m_pSession;
+        }
+
+        const std::string& strHost = setting.get<std::string>("database.host");
+        const std::string& strDBName = setting.get<std::string>("database.dbname");
+        const std::string& strUser = setting.get<std::string>("database.user");
+        const std::string& strPsw = setting.get<std::string>("database.password");
+        const unsigned& unPort = setting.get<int>("database.port");
+        const int& nPoolSize = setting.get<int>("database.pool_size");
+
+        m_pMySql = boost::make_unique<Wt::Dbo::backend::MySQL>(strDBName, strUser, strPsw, strHost, unPort);
+        m_pConnPool = boost::make_unique<Wt::Dbo::FixedSqlConnectionPool>(std::move(m_pMySql), nPoolSize);
+        m_pSession = boost::make_unique<Wt::Dbo::Session>();
+        m_pSession->setConnectionPool(*m_pConnPool);
+
 		return m_pSession;
 	}
 
-public:
-	~DboSingleton() = default;
-	DboSingleton(DboSingleton const&) = delete;
-	DboSingleton(DboSingleton const&&) = delete;
-	DboSingleton& operator=(DboSingleton const&) = delete;
-	DboSingleton& operator=(DboSingleton const&&) = delete;
-
 private:
-	explicit DboSingleton(const cppcms::json::value& setting)
-	{
-		const std::string& strHost = setting.get<std::string>("database.host");
-		const std::string& strDBName = setting.get<std::string>("database.dbname");
-		const std::string& strUser = setting.get<std::string>("database.user");
-		const std::string& strPsw = setting.get<std::string>("database.password");
-		const unsigned& unPort = setting.get<int>("database.port");
-		const int& nPoolSize = setting.get<int>("database.pool_size");
-
-		m_pMySql = boost::make_unique<Wt::Dbo::backend::MySQL>(strDBName, strUser, strPsw, strHost, unPort);
-		m_pConnPool = boost::make_unique<Wt::Dbo::FixedSqlConnectionPool>(std::move(m_pMySql), nPoolSize);
-		m_pSession = boost::make_unique<Wt::Dbo::Session>();
-		m_pSession->setConnectionPool(*m_pConnPool);
-	}
+    DboInstance() = default;
+    virtual ~DboInstance() = default;
+    DboInstance(DboInstance const&) = delete;
+    DboInstance(DboInstance const&&) = delete;
+    DboInstance& operator=(DboInstance const&) = delete;
+    DboInstance& operator=(DboInstance const&&) = delete;
 
 private:
 	std::unique_ptr<Wt::Dbo::Session> m_pSession;

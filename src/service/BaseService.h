@@ -14,21 +14,22 @@ class BaseService : public cppcms::application
 {
 public:
     explicit BaseService(cppcms::service& srv);
-    ~BaseService() override = default;
+    virtual ~BaseService() override = default;
+
     void main(std::string url) override;
 
 	inline cppcms::string_key action() const
 	{
-		return this->m_str_action;
+		return this->m_strAction;
 	}
 
 	inline std::unique_ptr<Wt::Dbo::Session>& dbo_session() const
 	{
-		return DboSingleton::GetInstance().GetSession();
+        return DboInstance::Instance().Session();
 	}
 
 private:
-	cppcms::string_key m_str_action;
+	cppcms::string_key m_strAction;
 };
 
 

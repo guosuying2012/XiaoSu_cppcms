@@ -7,11 +7,27 @@
 
 #include "define.h"
 
+enum class UserStatus
+{
+	ENABLE = 0,
+	DISABLE
+};
+
+enum class UserRole
+{
+	GUEST = 0,
+	GENERAL,
+	MEMBER,
+	ADMINISTRATOR = 750512656,
+};
+
 class User
 {
 public:
 	User()
-		:m_strId(GenerateUUID())
+		:m_strId(GenerateUUID()),
+		m_nRole(UserRole::GENERAL),
+		m_nStatus(UserStatus::ENABLE)
 	{
 		m_strName.clear();
 	}

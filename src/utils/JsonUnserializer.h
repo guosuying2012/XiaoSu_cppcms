@@ -29,13 +29,15 @@ public:
 	JsonUnserializer(const JsonUnserializer&&) = delete;
 	void operator=(const JsonUnserializer&&) = delete;
 
-	const Wt::Dbo::Session *session() const { return DboSingleton::GetInstance().GetSession().get(); }
+    const Wt::Dbo::Session *session() const { return DboInstance::Instance().Session().get(); }
 
 	template<typename T>
     void unserialize(const std::string& strJson, Wt::Dbo::ptr<T>& t)
 	{
 		if (m_Document.Parse(strJson).HasParseError())
 		{
+			PLOG_ERROR << "JsonParseError Code: " << m_Document.GetParseError()
+			<< ". " << "JsonString: " << strJson;
 			return;
 		}
 
@@ -101,8 +103,8 @@ public:
 			field.setValue(m_Document[field.name()].GetInt());
 		}
 	}
-    void act(const Wt::Dbo::FieldRef<bool>& field)  //一般表示状态
-	{
+    void act(const Wt::Dbo::FieldRef<bool>& __attribute__((unused)) field)  //一般表示状态
+    {
         //if (m_Document.HasMember(field.name()) && m_Document[field.name()].IsBool())
 		{
             //field.setValue(m_Document[field.name()].GetBool());
@@ -122,7 +124,7 @@ public:
 			field.setValue(m_Document[field.name()].GetDouble());
 		}
 	}
-    void act(const Wt::Dbo::FieldRef<std::chrono::system_clock::time_point>& field)//一般表示创建时间或操作时间
+    void act(const Wt::Dbo::FieldRef<std::chrono::system_clock::time_point>& __attribute__((unused)) field)//一般表示创建时间或操作时间
 	{
         //if (m_Document.HasMember(field.name()) && m_Document[field.name()].IsNumber())
         {
@@ -130,7 +132,7 @@ public:
             //field.setValue(std::chrono::system_clock::from_time_t(nTime));
         }
 	}
-	void act(const Wt::Dbo::FieldRef<std::chrono::duration<int, std::milli> >& field)
+    void act(const Wt::Dbo::FieldRef<std::chrono::duration<int, std::milli> >& __attribute__((unused)) field)
 	{
 		//表示时间段
 	}
@@ -142,7 +144,7 @@ public:
 	}
 
 	template<typename T>
-	inline void actId(Wt::Dbo::ptr<T>& value, const std::string& name, int size, int fkConstraints)
+    inline void actId(Wt::Dbo::ptr<T>& value, const std::string& name, int size, int __attribute__((unused)) fkConstraints)
 	{
 		Wt::Dbo::field(*this, value, name, size);
 	}
@@ -156,10 +158,10 @@ public:
             try
             {
                 const std::string& strID = m_Document[strFieldName].GetString();
-                const std::unique_ptr<dbo::Session>& pSession = DboSingleton::GetInstance().GetSession();
+                const std::unique_ptr<dbo::Session>& pSession = DboInstance::Instance().Session();
                 dbo::Transaction transaction(*pSession);
 
-                Wt::Dbo::ptr<T> pObj = DboSingleton::GetInstance().GetSession()->find<T>()
+                Wt::Dbo::ptr<T> pObj = pSession->find<T>()
                         .where(strFieldName.append("=?"))
                         .bind(strID);
 
@@ -181,7 +183,7 @@ public:
 	}
 
 	template<typename T>
-	void actWeakPtr(const Wt::Dbo::WeakPtrRef<T>& field)
+    void actWeakPtr(const Wt::Dbo::WeakPtrRef<T>& __attribute__((unused)) field)
     {
         /*std::string& strFieldName = const_cast<std::string&>(field.joinName());
         if (m_Document.HasMember(strFieldName) && m_Document[strFieldName].IsString())
@@ -213,7 +215,7 @@ public:
 	}
 
 	template<typename T>
-	void actCollection(const Wt::Dbo::CollectionRef<T>& collec)
+    void actCollection(const Wt::Dbo::CollectionRef<T>& __attribute__((unused)) collec)
     {
 	}
 

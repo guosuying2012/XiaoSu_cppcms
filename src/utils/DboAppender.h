@@ -18,7 +18,7 @@ public:
 		plog::util::MutexLock lock(m_mutex);
 		try
 		{
-			dbo::Transaction transaction(*DboSingleton::GetInstance().GetSession());
+            dbo::Transaction transaction(*DboInstance::Instance().Session());
 			std::unique_ptr<SystemLog> sysLog{new SystemLog()};
 			sysLog->setMessage(record.getMessage());
 			sysLog->setSeverity(record.getSeverity());
@@ -26,7 +26,7 @@ public:
 			sysLog->setTime(std::chrono::system_clock::now());
 			sysLog->setFunName(record.getFunc());
 			sysLog->setLine(record.getLine());
-			DboSingleton::GetInstance().GetSession()->add(std::move(sysLog));
+            DboInstance::Instance().Session()->add(std::move(sysLog));
 			transaction.commit();
 		}
 		catch (const std::exception &ex)

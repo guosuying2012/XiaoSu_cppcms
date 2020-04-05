@@ -13,13 +13,17 @@ BaseService::BaseService(cppcms::service &srv)
 {
 }
 
-void BaseService::main(std::string str_url)
+void BaseService::main(std::string strUrl)
 {
-	m_str_action = str_url;
+	if (!strUrl.empty())
+	{
+		m_strAction = strUrl;
+	}
+
 	response().content_type("application/json; charset=utf-8");
-    if(!dispatcher().dispatch(str_url))
+    if(!dispatcher().dispatch(strUrl))
     {
         response().status(cppcms::http::response::not_found);
-        response().out() << json_serializer(cppcms::http::response::not_found, str_url, "api not fount");
+        response().out() << json_serializer(cppcms::http::response::not_found, strUrl, translate("未找到相关API"));
     }
 }

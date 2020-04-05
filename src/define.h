@@ -28,16 +28,6 @@ using Categorys = dbo::collection<dbo::ptr<Category> >;
 using Articles = dbo::collection<dbo::ptr<Article> >;
 using Logs = dbo::collection< dbo::ptr<SystemLog> >;
 
-enum class UserStatus
-{
-
-};
-
-enum class UserRole
-{
-
-};
-
 static std::string GenerateUUID()
 {
 	boost::uuids::uuid a_uuid = boost::uuids::random_generator()();
