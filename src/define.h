@@ -5,6 +5,7 @@
 
 #include <cpr/cpr.h>
 #include <plog/Log.h>
+#include <jwt-cpp/jwt.h>
 
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_io.hpp>

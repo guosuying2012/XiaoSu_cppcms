@@ -17,6 +17,8 @@
 
 #include <exception>
 
+using cppcms::http::response;
+
 ArticleService::ArticleService(cppcms::service &srv)
 	: BaseService(srv)
 {
@@ -66,11 +68,21 @@ void ArticleService::article(const std::string& strArticleId)
         {
             if (!pArticle)
             {
-                response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("未找到博客"));
+                response().out() << json_serializer(response::not_found, action(), translate("未找到博客"));
                 return;
             }
 
-            response().out() << json_serializer(pArticle, cppcms::http::response::ok, action(), translate("获取成功"));
+            response().out() << json_serializer(pArticle, response::ok, action(), translate("获取成功"));
+            return;
+        }
+
+        //以下操作均为敏感操作，加上用户授权验证
+        //首先获取HTTP HEADER 有没有TOKEN
+        const std::string& strToken = request().getenv("HTTP_AUTHORIZATION");
+        if (strToken.empty())
+        {
+            //提示用户要带上TOKEN  bad_request
+            response().out() << json_serializer(response::unauthorized, action(), translate("请先登陆"));
             return;
         }
 
@@ -79,7 +91,7 @@ void ArticleService::article(const std::string& strArticleId)
         {
             if (request().raw_post_data().second <= 0)
             {
-                response().out() << json_serializer(cppcms::http::response::precondition_failed, action(), translate("添加失败,未收到需要添加的内容。"));
+                response().out() << json_serializer(response::precondition_failed, action(), translate("添加失败,未收到需要添加的内容。"));
                 return;
             }
             add_article();
@@ -91,7 +103,7 @@ void ArticleService::article(const std::string& strArticleId)
         {
             if (request().raw_post_data().second <= 0)
             {
-                response().out() << json_serializer(cppcms::http::response::precondition_failed, action(), "修改失败");
+                response().out() << json_serializer(response::precondition_failed, action(), "修改失败");
                 return;
             }
             modify_article(pArticle);
@@ -108,12 +120,30 @@ void ArticleService::article(const std::string& strArticleId)
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), ex.what());
+        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
     }
 }
 
 void ArticleService::add_article()
 {
+    bool bIsAdmin = false;
+
+    //来到这里说名用户给了TOKEN，那么先校验TOKEN合法性
+    const std::string& strToken = request().getenv("HTTP_AUTHORIZATION");
+    const jwt::decoded_jwt decoded(strToken);
+    try
+    {
+        auto verify = jwt::verify().allow_algorithm(jwt::algorithm::hs256{"yengsu"}).with_issuer("yengsu");
+        verify.verify(decoded);
+    }
+    catch (const std::exception& ex)
+    {
+        //捕捉到TOKEN不合法，不能放行
+        PLOG_ERROR << ex.what();
+        response().out() << json_serializer(response::unauthorized, action(), ex.what());
+        return;
+    }
+
     try
     {
         const std::unique_ptr<dbo::Session>& pSession = dbo_session();
@@ -127,20 +157,41 @@ void ArticleService::add_article()
         //判断有效性
         if (!pArticle->category())
         {
-            response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("添加失败,未找到分类。"));
+            response().out() << json_serializer(response::not_found, action(), translate("添加失败,未找到分类。"));
             return;
         }
-        if (!pArticle->user())
+
+        try
         {
-            response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("添加失败,未找到用户。"));
-            return;
+            //管理员专用通道
+            bIsAdmin = decoded.get_payload_claim("admin").as_bool();
+        }
+        catch (const std::exception& ex) {  }
+
+        if (!bIsAdmin)
+        {
+            //TOKEN合法
+            const std::string& strUserId = decoded.get_payload_claim("jti").as_string();
+            const dbo::ptr<User>& pUser = pSession->find<User>().where("user_id=?").bind(strUserId);
+            //用户应该是TOKEN里面的
+            if (pUser)
+            {
+                pArticle.modify()->user(pUser);
+            }
+            else
+            {
+                //如果通过TOKEN没找到用户说明有入侵
+                PLOG_ERROR << "请注意，有违规操作！！！" << "Token: " << strToken << ",UserId : " << strUserId;
+                response().out() << json_serializer(response::ok, action(), translate("检测违规操作"));
+                return;
+            }
         }
 
         //通过标题判断重复提交
         Articles articles = pSession->find<Article>().where("article_title=?").bind(pArticle->title());
         if (articles.size() > 0)
         {
-            response().out() << json_serializer(cppcms::http::response::found, action(), translate("添加失败,博客已存在"));
+            response().out() << json_serializer(response::found, action(), translate("添加失败,博客已存在"));
             return;
         }
 
@@ -148,28 +199,66 @@ void ArticleService::add_article()
         dbo::ptr<Article> pAddedPtr = pSession->add<Article>(pArticle);
         if (pAddedPtr)
         {
-            response().out() << json_serializer(pAddedPtr, cppcms::http::response::created, action(), translate("添加成功"));
+            response().out() << json_serializer(pAddedPtr, response::created, action(), translate("添加成功"));
         }
         else
         {
-            response().out() << json_serializer(cppcms::http::response::precondition_failed, action(), translate("添加失败"));
+            response().out() << json_serializer(response::precondition_failed, action(), translate("添加失败"));
         }
     }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
+        response().out() << json_serializer(response::internal_server_error, action(), translate(ex.what()));
     }
 }
 
 void ArticleService::modify_article(dbo::ptr<Article> pArticle)
 {
+    bool bIsAdmin = false;
+
+    //来到这里说名用户给了TOKEN，那么先校验TOKEN合法性
+    const std::string& strToken = request().getenv("HTTP_AUTHORIZATION");
+    jwt::decoded_jwt decoded(strToken);
+    try
+    {
+        auto verify = jwt::verify().allow_algorithm(jwt::algorithm::hs256{"yengsu"}).with_issuer("yengsu");
+        verify.verify(decoded);
+    }
+    catch (const std::exception& ex)
+    {
+        //捕捉到TOKEN不合法，不能放行
+        PLOG_ERROR << ex.what() << " : " << strToken;
+        response().out() << json_serializer(response::unauthorized, action(), ex.what());
+        return;
+    }
+
+    try
+    {
+        //管理员专用通道
+        bIsAdmin = decoded.get_payload_claim("admin").as_bool();
+    }
+    catch (const std::exception& ex) {  }
+
+    if (!bIsAdmin)
+    {
+        //验证博文是否归属于当前操作用户
+        const std::string& strUserId = decoded.get_payload_claim("jti").as_string();
+        if (strUserId != pArticle->user().id())
+        {
+            //无权操作别人的博文
+            PLOG_ERROR << "有用户在执行修改操作时不属于他的文章：" << strUserId << "Token: " << strToken;
+            response().out() << json_serializer(response::unauthorized, action(), translate("权限不足"));
+            return;
+        }
+    }
+
     try
     {
         if (!pArticle)
         {
             //失败，未找到相关
-            response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("修改失败,未找到博文."));
+            response().out() << json_serializer(response::not_found, action(), translate("修改失败,未找到该博文"));
             return;
         }
 
@@ -178,10 +267,11 @@ void ArticleService::modify_article(dbo::ptr<Article> pArticle)
         dbo::ptr<Article> pModify = dbo::make_ptr<Article>();
         json_unserializer(strBuffer, pModify);
 
-        if (pModify->user())//用户
+        //不应该由用户修改博客作者
+        /*if (pModify->user())//用户
         {
             pArticle.modify()->user(pModify->user());
-        }
+        }*/
         if (pModify->category())//分类
         {
             pArticle.modify()->category(pModify->category());
@@ -203,38 +293,103 @@ void ArticleService::modify_article(dbo::ptr<Article> pArticle)
             pArticle.modify()->describe(pModify->describe());
         }
 
-        response().out() << json_serializer(cppcms::http::response::ok, action(), translate("修改成功"));
+        response().out() << json_serializer(response::ok, action(), translate("修改成功"));
     }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
+        response().out() << json_serializer(response::internal_server_error, action(), translate(ex.what()));
     }
 }
 
 void ArticleService::delete_article(dbo::ptr<Article> pArticle)
 {
+    bool bIsAdmin = false;
+
+    //来到这里说名用户给了TOKEN，那么先校验TOKEN合法性
+    const std::string& strToken = request().getenv("HTTP_AUTHORIZATION");
+    jwt::decoded_jwt decoded(strToken);
+    try
+    {
+        auto verify = jwt::verify().allow_algorithm(jwt::algorithm::hs256{"yengsu"}).with_issuer("yengsu");
+        verify.verify(decoded);
+    }
+    catch (const std::exception& ex)
+    {
+        //捕捉到TOKEN不合法，不能放行
+        PLOG_ERROR << ex.what();
+        response().out() << json_serializer(response::unauthorized, action(), ex.what());
+        return;
+    }
+
+    try
+    {
+        //管理员专用通道
+        bIsAdmin = decoded.get_payload_claim("admin").as_bool();
+    }
+    catch (const std::exception& ex) {  }
+
+    if (!bIsAdmin)
+    {
+        //验证博文是否归属于当前操作用户
+        const std::string& strUserId = decoded.get_payload_claim("jti").as_string();
+        if (strUserId != pArticle->user().id())
+        {
+            //无权操作别人的博文
+            PLOG_ERROR << "有用户在执行删除操作时不属于他的文章：" << strUserId << "Token: " << strToken;
+            response().out() << json_serializer(response::unauthorized, action(), translate("权限不足"));
+            return;
+        }
+    }
+
     try
     {
         if (!pArticle)
         {
             //失败，未找到相关
-            response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("删除失败,未找到博文."));
+            response().out() << json_serializer(response::not_found, action(), translate("删除失败,未找到博文."));
             return;
         }
 
         pArticle.remove();
-        response().out() << json_serializer(cppcms::http::response::ok, action(), translate("删除成功"));
+        response().out() << json_serializer(response::ok, action(), translate("删除成功"));
     }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), translate(ex.what()));
+        response().out() << json_serializer(response::internal_server_error, action(), translate(ex.what()));
     }
 }
 
 void ArticleService::move_to(const std::string strArticleId, const std::string& strMoveTo, const std::string strId)
 {
+    bool bIsAdmin = false;
+
+    //以下操作均为敏感操作，加上用户授权验证
+    //首先获取HTTP HEADER 有没有TOKEN
+    const std::string& strToken = request().getenv("HTTP_AUTHORIZATION");
+    if (strToken.empty())
+    {
+        //提示用户要带上TOKEN  bad_request
+        response().out() << json_serializer(response::unauthorized, action(), translate("请先登陆"));
+        return;
+    }
+
+    //来到这里说明用户给了TOKEN，那么先校验TOKEN合法性
+    jwt::decoded_jwt decoded(strToken);
+    try
+    {
+        auto verify = jwt::verify().allow_algorithm(jwt::algorithm::hs256{"yengsu"}).with_issuer("yengsu");
+        verify.verify(decoded);
+    }
+    catch (const std::exception& ex)
+    {
+        //捕捉到TOKEN不合法，不能放行
+        PLOG_ERROR << ex.what();
+        response().out() << json_serializer(response::unauthorized, action(), ex.what());
+        return;
+    }
+
     try
     {
         const std::unique_ptr<dbo::Session>& pSession = dbo_session();
@@ -244,8 +399,28 @@ void ArticleService::move_to(const std::string strArticleId, const std::string& 
         if (!pArticle)
         {
             //失败，未找到相关
-            response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("移动失败,未找到博文."));
+            response().out() << json_serializer(response::not_found, action(), translate("移动失败,未找到博文."));
             return;
+        }
+
+        try
+        {
+            //管理员专用通道
+            bIsAdmin = decoded.get_payload_claim("admin").as_bool();
+        }
+        catch (const std::exception& ex) {  }
+
+        if (!bIsAdmin)
+        {
+            //验证博文是否归属于当前操作用户
+            const std::string& strUserId = decoded.get_payload_claim("jti").as_string();
+            if (strUserId != pArticle->user().id())
+            {
+                //无权操作别人的博文
+                PLOG_ERROR << "有用户在执行移动操作时不属于他的文章：" << strUserId << "Token: " << strToken;
+                response().out() << json_serializer(response::unauthorized, action(), translate("权限不足"));
+                return;
+            }
         }
 
         if (strMoveTo == "user")
@@ -254,7 +429,7 @@ void ArticleService::move_to(const std::string strArticleId, const std::string& 
             if (!pUser)
             {
                 //未找到相关
-                response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("移动失败,未找到用户"));
+                response().out() << json_serializer(response::not_found, action(), translate("移动失败,未找到用户"));
                 return;
             }
 
@@ -267,19 +442,19 @@ void ArticleService::move_to(const std::string strArticleId, const std::string& 
             if (!pCategory)
             {
                 //未找到相关
-                response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("移动失败,未找到分类"));
+                response().out() << json_serializer(response::not_found, action(), translate("移动失败,未找到分类"));
                 return;
             }
 
             pArticle.modify()->category(pCategory);
         }
 
-        response().out() << json_serializer(cppcms::http::response::ok, action(), translate("移动成功"));
+        response().out() << json_serializer(response::ok, action(), translate("移动成功"));
     }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), ex.what());
+        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
     }
 }
 
@@ -290,12 +465,12 @@ void ArticleService::all_articles()
 		const std::unique_ptr<dbo::Session>& pSession = dbo_session();
 		dbo::Transaction transaction(*pSession);
 		Articles vecArticles = pSession->find<Article>();
-        response().out() << json_serializer(vecArticles, cppcms::http::response::ok, action(), translate("获取成功"));
+        response().out() << json_serializer(vecArticles, response::ok, action(), translate("获取成功"));
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), ex.what());
+        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
 	}
 }
 
@@ -310,12 +485,12 @@ void ArticleService::all_articles(int nPageSize, int nCurrentPage)
 		        .offset((nCurrentPage -1 ) * nPageSize)
 		        .limit(nPageSize);
 
-        response().out() << json_serializer(vecArticles, cppcms::http::response::ok, action(), translate("获取成功"));
+        response().out() << json_serializer(vecArticles, response::ok, action(), translate("获取成功"));
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), ex.what());
+        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
 	}
 }
 
@@ -330,16 +505,16 @@ void ArticleService::all_article_by_user(const std::string &strUserId)
 
         if (!pUser)
 		{
-            response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("指定用户不存在"));
+            response().out() << json_serializer(response::not_found, action(), translate("指定用户不存在"));
 			return;
 		}
 
-        response().out() << json_serializer(pUser->getArticles(), cppcms::http::response::ok, action(), translate("获取成功"));
+        response().out() << json_serializer(pUser->getArticles(), response::ok, action(), translate("获取成功"));
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), ex.what());
+        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
 	}
 }
 
@@ -356,12 +531,12 @@ void ArticleService::all_article_by_user(const std::string &strUserId, int nPage
 				.offset((nCurrentPage -1 ) * nPageSize)
 				.limit(nPageSize);
 
-        response().out() << json_serializer(vecArticles, cppcms::http::response::ok, action(), translate("获取成功"));
+        response().out() << json_serializer(vecArticles, response::ok, action(), translate("获取成功"));
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), ex.what());
+        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
 	}
 }
 
@@ -376,16 +551,16 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId)
 
         if (!pCategory)
         {
-            response().out() << json_serializer(cppcms::http::response::not_found, action(), translate("没有找到相关分类"));
+            response().out() << json_serializer(response::not_found, action(), translate("没有找到相关分类"));
             return;
         }
 
-        response().out() << json_serializer(pCategory->getArticles(), cppcms::http::response::ok, action(), translate("获取成功"));
+        response().out() << json_serializer(pCategory->getArticles(), response::ok, action(), translate("获取成功"));
     }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), ex.what());
+        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
     }
 }
 
@@ -402,11 +577,11 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId, i
 				.offset((nCurrentPage -1 ) * nPageSize)
 				.limit(nPageSize);
 
-        response().out() << json_serializer(vecArticles, cppcms::http::response::ok, action(), translate("获取成功"));
+        response().out() << json_serializer(vecArticles, response::ok, action(), translate("获取成功"));
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-        response().out() << json_serializer(cppcms::http::response::internal_server_error, action(), ex.what());
+        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
 	}
 }
