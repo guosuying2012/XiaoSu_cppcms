@@ -5,17 +5,17 @@
 #ifndef _JSONSERIALIZER_H
 #define _JSONSERIALIZER_H
 
-#include <Wt/Dbo/ptr.h>
-#include <Wt/Dbo/Field.h>
-#include <Wt/Dbo/weak_ptr.h>
-#include <Wt/Dbo/collection.h>
+#include <chrono>
+#include <iomanip>
+#include <type_traits>
 
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
 
-#include <chrono>
-#include <iomanip>
-#include <type_traits>
+#include <Wt/Dbo/ptr.h>
+#include <Wt/Dbo/Field.h>
+#include <Wt/Dbo/weak_ptr.h>
+#include <Wt/Dbo/collection.h>
 
 class JsonSerializer
 {

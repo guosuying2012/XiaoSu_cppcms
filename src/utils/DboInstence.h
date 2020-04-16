@@ -41,10 +41,10 @@ public:
 private:
     DboInstance() = default;
     virtual ~DboInstance() = default;
-    DboInstance(DboInstance const&) = delete;
-    DboInstance(DboInstance const&&) = delete;
-    DboInstance& operator=(DboInstance const&) = delete;
-    DboInstance& operator=(DboInstance const&&) = delete;
+    DboInstance(const DboInstance&) = delete;
+    DboInstance(const DboInstance&&) = delete;
+    DboInstance& operator=(const DboInstance&) = delete;
+    DboInstance& operator=(const DboInstance&&) = delete;
 
 private:
 	std::unique_ptr<Wt::Dbo::Session> m_pSession;

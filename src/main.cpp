@@ -1,8 +1,9 @@
-#include "utils/DboAppender.h"
-#include "service/ApplicationService.h"
-
 #include <cppcms/service.h>
 #include <cppcms/applications_pool.h>
+
+#include "utils/DboAppender.h"
+#include "utils/authorizeinstance.h"
+#include "service/ApplicationService.h"
 
 //debug
 #include <plog/Appenders/ColorConsoleAppender.h>
@@ -20,6 +21,7 @@ int main(int argc, char* argv[])
         //static DboAppender dbo;
         cppcms::service srv(argc,argv);
         DboInstance::Instance().Session(srv.settings());
+        AuthorizeInstance::Instance().initialization(srv.settings());
         srv.applications_pool().mount(cppcms::applications_factory<ApplicationService>());
         //plog::init<plog::TxtFormatter>(plog::verbose, "runtime.log").addAppender(&dbo);
         srv.run();

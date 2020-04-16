@@ -2,20 +2,22 @@
 // Created by yengsu on 2020/3/1.
 //
 
-#include "define.h"
-#include "model/user.h"
-#include "model/article.h"
-#include "model/userinfo.h"
-#include "model/category.h"
 #include "ArticleService.h"
-#include "utils/JsonSerializer.h"
-#include "utils/JsonUnserializer.h"
+
+#include <exception>
 
 #include <cppcms/http_request.h>
 #include <cppcms/http_response.h>
 #include <cppcms/url_dispatcher.h>
 
-#include <exception>
+#include "define.h"
+#include "model/user.h"
+#include "model/article.h"
+#include "model/userinfo.h"
+#include "model/category.h"
+#include "utils/JsonSerializer.h"
+#include "utils/JsonUnserializer.h"
+#include "utils/authorizeinstance.h"
 
 using cppcms::http::response;
 
@@ -58,31 +60,22 @@ void ArticleService::article(const std::string& strArticleId)
     {
         const std::unique_ptr<dbo::Session>& pSession = dbo_session();
         dbo::Transaction transaction(*pSession);
-
-        dbo::ptr<Article> pArticle = pSession->find<Article>()
-                .where("article_id=?")
-                .bind(strArticleId);
+        dbo::ptr<Article> pArticle = pSession->load<Article>(strArticleId);
 
         //获取博客
         if (request().request_method() == "GET")
         {
-            if (!pArticle)
-            {
-                response().out() << json_serializer(response::not_found, action(), "未找到博客");
-                return;
-            }
-
             response().out() << json_serializer(pArticle, response::ok, action(), "获取成功");
             return;
         }
 
         //以下操作均为敏感操作，加上用户授权验证
         //首先获取HTTP HEADER 有没有TOKEN
-        const std::string& strToken = request().getenv("HTTP_AUTHORIZATION");
+        const cppcms::string_key& strToken = request().getenv("HTTP_AUTHORIZATION");
         if (strToken.empty())
         {
             //提示用户要带上TOKEN  bad_request
-            response().out() << json_serializer(response::unauthorized, action(), "请先登陆");
+            response().out() << json_serializer(response::unauthorized, action(), "认证失败");
             return;
         }
 
@@ -91,7 +84,9 @@ void ArticleService::article(const std::string& strArticleId)
         {
             if (request().raw_post_data().second <= 0)
             {
-                response().out() << json_serializer(response::precondition_failed, action(), "添加失败,未收到需要添加的内容。");
+                response().out() << json_serializer(response::precondition_failed,
+                                                    action(),
+                                                    "添加失败,未收到需要添加的内容。");
                 return;
             }
             add_article();
@@ -123,6 +118,11 @@ void ArticleService::article(const std::string& strArticleId)
             return;
         }
     }
+    catch (const dbo::ObjectNotFoundException& ex)
+    {
+        PLOG_ERROR << ex.what();
+        response().out() << json_serializer(response::not_found, action(), "未找到博客");
+    }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
@@ -136,19 +136,12 @@ void ArticleService::add_article()
 
     //来到这里说名用户给了TOKEN，那么先校验TOKEN合法性
     const std::string& strToken = request().getenv("HTTP_AUTHORIZATION");
-    const jwt::decoded_jwt decoded(strToken);
-    try
-    {
-        auto verify = jwt::verify()
-                .allow_algorithm(jwt::algorithm::hs256{authorization_secret()})
-                .with_issuer(authorization_issuer());
-        verify.verify(decoded);
-    }
-    catch (const std::exception& ex)
+    const std::pair<bool, cppcms::string_key>& verify = AuthorizeInstance::Instance().verify_token(strToken);
+    if (!verify.first)
     {
         //捕捉到TOKEN不合法，不能放行
-        PLOG_ERROR << ex.what();
-        response().out() << json_serializer(response::unauthorized, action(), ex.what());
+        PLOG_ERROR << verify.second.str();
+        response().out() << json_serializer(response::unauthorized, action(), verify.second);
         return;
     }
 
@@ -159,7 +152,8 @@ void ArticleService::add_article()
         dbo::ptr<Article> pArticle = dbo::make_ptr<Article>();
 
         char strBuffer[request().raw_post_data().second + 1];
-        memcpy(strBuffer, static_cast<char*>(request().raw_post_data().first), request().raw_post_data().second);
+        memcpy(strBuffer, static_cast<char*>(request().raw_post_data().first),
+               request().raw_post_data().second);
         json_unserializer(strBuffer, pArticle);
 
         //判断有效性
@@ -169,18 +163,15 @@ void ArticleService::add_article()
             return;
         }
 
-        try
-        {
-            //管理员专用通道
-            bIsAdmin = decoded.get_payload_claim("admin").as_bool();
-        }
-        catch (const std::exception& ex) {  }
+        //管理员专用通道
+        bIsAdmin = AuthorizeInstance::Instance().is_admin(strToken);
 
         if (!bIsAdmin)
         {
             //TOKEN合法
-            const std::string& strUserId = decoded.get_payload_claim("jti").as_string();
-            const dbo::ptr<User>& pUser = pSession->find<User>().where("user_id=?").bind(strUserId);
+            const std::string& strUserId = AuthorizeInstance::Instance().get_user_id(strToken);
+            //const dbo::ptr<User>& pUser = pSession->find<User>().where("user_id=?").bind(strUserId);
+            const dbo::ptr<User>& pUser = pSession->load<User>(strUserId);
             //用户应该是TOKEN里面的
             if (pUser)
             {
@@ -189,7 +180,9 @@ void ArticleService::add_article()
             else
             {
                 //如果通过TOKEN没找到用户说明有入侵
-                PLOG_ERROR << "请注意，有违规操作！！！" << "Token: " << strToken << ",UserId : " << strUserId;
+                PLOG_ERROR << "请注意，有违规操作！！！"
+                           << "Token: " << strToken
+                           << ",UserId : " << strUserId;
                 response().out() << json_serializer(response::ok, action(), "检测违规操作");
                 return;
             }
@@ -214,6 +207,11 @@ void ArticleService::add_article()
             response().out() << json_serializer(response::precondition_failed, action(), "添加失败");
         }
     }
+    catch (const dbo::ObjectNotFoundException& ex)
+    {
+        PLOG_DEBUG << ex.what();
+        response().out() << json_serializer(response::not_found, action(), "未找到相关记录");
+    }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
@@ -227,19 +225,12 @@ void ArticleService::modify_article(dbo::ptr<Article>& pArticle)
 
     //来到这里说名用户给了TOKEN，那么先校验TOKEN合法性
     const std::string& strToken = request().getenv("HTTP_AUTHORIZATION");
-    jwt::decoded_jwt decoded(strToken);
-    try
-    {
-        auto verify = jwt::verify()
-                .allow_algorithm(jwt::algorithm::hs256{authorization_secret()})
-                .with_issuer(authorization_issuer());
-        verify.verify(decoded);
-    }
-    catch (const std::exception& ex)
+    const std::pair<bool, cppcms::string_key>& verify = AuthorizeInstance::Instance().verify_token(strToken);
+    if (!verify.first)
     {
         //捕捉到TOKEN不合法，不能放行
-        PLOG_ERROR << ex.what() << " : " << strToken;
-        response().out() << json_serializer(response::unauthorized, action(), ex.what());
+        PLOG_ERROR << verify.second.str();
+        response().out() << json_serializer(response::unauthorized, action(), verify.second);
         return;
     }
 
@@ -250,17 +241,13 @@ void ArticleService::modify_article(dbo::ptr<Article>& pArticle)
         return;
     }
 
-    try
-    {
-        //管理员专用通道
-        bIsAdmin = decoded.get_payload_claim("admin").as_bool();
-    }
-    catch (const std::exception& ex) {  }
+    //管理员专用通道
+    bIsAdmin = AuthorizeInstance::Instance().is_admin(strToken);
 
     if (!bIsAdmin)
     {
         //验证博文是否归属于当前操作用户
-        const std::string& strUserId = decoded.get_payload_claim("jti").as_string();
+        const std::string& strUserId = AuthorizeInstance::Instance().get_user_id(strToken);
         if (strUserId != pArticle->user().id())
         {
             //无权操作别人的博文
@@ -273,7 +260,8 @@ void ArticleService::modify_article(dbo::ptr<Article>& pArticle)
     try
     {
         char strBuffer[request().raw_post_data().second + 1];
-        memcpy(strBuffer, static_cast<char*>(request().raw_post_data().first), request().raw_post_data().second);
+        memcpy(strBuffer, static_cast<char*>(request().raw_post_data().first),
+               request().raw_post_data().second);
         dbo::ptr<Article> pModify = dbo::make_ptr<Article>();
         json_unserializer(strBuffer, pModify);
 
@@ -318,19 +306,12 @@ void ArticleService::delete_article(dbo::ptr<Article>& pArticle)
 
     //来到这里说名用户给了TOKEN，那么先校验TOKEN合法性
     const std::string& strToken = request().getenv("HTTP_AUTHORIZATION");
-    jwt::decoded_jwt decoded(strToken);
-    try
-    {
-        auto verify = jwt::verify()
-                .allow_algorithm(jwt::algorithm::hs256{authorization_secret()})
-                .with_issuer(authorization_issuer());
-        verify.verify(decoded);
-    }
-    catch (const std::exception& ex)
+    const std::pair<bool, cppcms::string_key>& verify = AuthorizeInstance::Instance().verify_token(strToken);
+    if (!verify.first)
     {
         //捕捉到TOKEN不合法，不能放行
-        PLOG_ERROR << ex.what();
-        response().out() << json_serializer(response::unauthorized, action(), ex.what());
+        PLOG_ERROR << verify.second.str();
+        response().out() << json_serializer(response::unauthorized, action(), verify.second);
         return;
     }
 
@@ -341,17 +322,13 @@ void ArticleService::delete_article(dbo::ptr<Article>& pArticle)
         return;
     }
 
-    try
-    {
-        //管理员专用通道
-        bIsAdmin = decoded.get_payload_claim("admin").as_bool();
-    }
-    catch (const std::exception& ex) {  }
+    //管理员专用通道
+    bIsAdmin = AuthorizeInstance::Instance().is_admin(strToken);
 
     if (!bIsAdmin)
     {
         //验证博文是否归属于当前操作用户
-        const std::string& strUserId = decoded.get_payload_claim("jti").as_string();
+        const std::string& strUserId = AuthorizeInstance::Instance().get_user_id(strToken);
         if (strUserId != pArticle->user().id())
         {
             //无权操作别人的博文
@@ -373,7 +350,9 @@ void ArticleService::delete_article(dbo::ptr<Article>& pArticle)
     }
 }
 
-void ArticleService::move_to(const std::string strArticleId, const std::string& strMoveTo, const std::string strId)
+void ArticleService::move_to(const std::string& strArticleId,
+                             const std::string& strMoveTo,
+                             const std::string& strId)
 {
     bool bIsAdmin = false;
 
@@ -388,19 +367,12 @@ void ArticleService::move_to(const std::string strArticleId, const std::string& 
     }
 
     //来到这里说明用户给了TOKEN，那么先校验TOKEN合法性
-    jwt::decoded_jwt decoded(strToken);
-    try
-    {
-        auto verify = jwt::verify()
-                .allow_algorithm(jwt::algorithm::hs256{authorization_secret()})
-                .with_issuer(authorization_issuer());
-        verify.verify(decoded);
-    }
-    catch (const std::exception& ex)
+    const std::pair<bool, cppcms::string_key>& verify = AuthorizeInstance::Instance().verify_token(strToken);
+    if (!verify.first)
     {
         //捕捉到TOKEN不合法，不能放行
-        PLOG_ERROR << ex.what();
-        response().out() << json_serializer(response::unauthorized, action(), ex.what());
+        PLOG_ERROR << verify.second.str();
+        response().out() << json_serializer(response::unauthorized, action(), verify.second);
         return;
     }
 
@@ -408,8 +380,8 @@ void ArticleService::move_to(const std::string strArticleId, const std::string& 
     {
         const std::unique_ptr<dbo::Session>& pSession = dbo_session();
         dbo::Transaction transaction(*pSession);
-
         dbo::ptr<Article> pArticle = pSession->find<Article>().where("article_id=?").bind(strArticleId);
+
         if (!pArticle)
         {
             //失败，未找到相关
@@ -417,17 +389,13 @@ void ArticleService::move_to(const std::string strArticleId, const std::string& 
             return;
         }
 
-        try
-        {
-            //管理员专用通道
-            bIsAdmin = decoded.get_payload_claim("admin").as_bool();
-        }
-        catch (const std::exception& ex) {  }
+        //管理员专用通道
+        bIsAdmin = AuthorizeInstance::Instance().is_admin(strToken);
 
         if (!bIsAdmin)
         {
             //验证博文是否归属于当前操作用户
-            const std::string& strUserId = decoded.get_payload_claim("jti").as_string();
+            const std::string& strUserId = AuthorizeInstance::Instance().get_user_id(strToken);
             if (strUserId != pArticle->user().id())
             {
                 //无权操作别人的博文
@@ -440,6 +408,7 @@ void ArticleService::move_to(const std::string strArticleId, const std::string& 
         if (strMoveTo == "user")
         {
             dbo::ptr<User> pUser = pSession->find<User>().where("user_id=?").bind(strId);
+            //dbo::ptr<User> pUser = pSession->load<User>(strId);
             if (!pUser)
             {
                 //未找到相关
@@ -453,6 +422,7 @@ void ArticleService::move_to(const std::string strArticleId, const std::string& 
         if (strMoveTo == "category")
         {
             dbo::ptr<Category> pCategory = pSession->find<Category>().where("category_id=?").bind(strId);
+            //dbo::ptr<Category> pCategory = pSession->load<Category>(strId);
             if (!pCategory)
             {
                 //未找到相关
@@ -508,23 +478,22 @@ void ArticleService::all_articles(int nPageSize, int nCurrentPage)
 	}
 }
 
-void ArticleService::all_article_by_user(const std::string &strUserId)
+void ArticleService::all_article_by_user(const std::string& strUserId)
 {
 	try
 	{
 		const std::unique_ptr<dbo::Session>& pSession = dbo_session();
 		dbo::Transaction transaction(*pSession);
 
-		dbo::ptr<User> pUser = pSession->find<User>().where("user_id=?").bind(strUserId);
-
-        if (!pUser)
-		{
-            response().out() << json_serializer(response::not_found, action(), "指定用户不存在");
-			return;
-		}
+        dbo::ptr<User> pUser = pSession->load<User>(strUserId);
 
         response().out() << json_serializer(pUser->getArticles(), response::ok, action(), "获取成功");
 	}
+    catch (const dbo::ObjectNotFoundException& ex)
+    {
+        PLOG_ERROR << ex.what();
+        response().out() << json_serializer(response::not_found, action(), "指定用户不存在");
+    }
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
@@ -532,7 +501,9 @@ void ArticleService::all_article_by_user(const std::string &strUserId)
 	}
 }
 
-void ArticleService::all_article_by_user(const std::string &strUserId, int nPageSize, int nCurrentPage)
+void ArticleService::all_article_by_user(const std::string& strUserId,
+                                         int nPageSize,
+                                         int nCurrentPage)
 {
 	try
 	{
@@ -561,15 +532,14 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId)
         const std::unique_ptr<dbo::Session>& pSession = dbo_session();
         dbo::Transaction transaction(*pSession);
 
-        dbo::ptr<Category> pCategory = pSession->find<Category>().where("category_id=?").bind(strCategoryId);
-
-        if (!pCategory)
-        {
-            response().out() << json_serializer(response::not_found, action(), "没有找到相关分类");
-            return;
-        }
+        dbo::ptr<Category> pCategory = pSession->load<Category>(strCategoryId);
 
         response().out() << json_serializer(pCategory->getArticles(), response::ok, action(), "获取成功");
+    }
+    catch (const dbo::ObjectNotFoundException& ex)
+    {
+        PLOG_ERROR << ex.what();
+        response().out() << json_serializer(response::not_found, action(), "没有找到相关分类");
     }
     catch (const std::exception& ex)
     {
@@ -578,7 +548,9 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId)
     }
 }
 
-void ArticleService::all_article_by_category(const std::string& strCategoryId, int nPageSize, int nCurrentPage)
+void ArticleService::all_article_by_category(const std::string& strCategoryId,
+                                             int nPageSize,
+                                             int nCurrentPage)
 {
 	try
 	{

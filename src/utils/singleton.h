@@ -1,3 +1,6 @@
+#ifndef SINGLETON_H
+#define SINGLETON_H
+
 #include <mutex>
 #include <atomic>
 
@@ -63,3 +66,5 @@ std::mutex Singleton<T>::m_mutex{};
 
 template <typename T>
 typename Singleton<T>::CGarbo Singleton<T>::garbo_{};
+
+#endif

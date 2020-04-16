@@ -8,14 +8,27 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 
 include_directories(src/)
 
-add_executable(xiaosu src/main.cpp src/define.h
-        src/model/systemlog.h src/model/user.h src/model/userinfo.h
-        src/model/article.h src/model/category.h
-        src/service/BaseService.cpp src/service/BaseService.h
-        src/service/ApplicationService.h src/service/ApplicationService.cpp
-        src/service/ArticleService.cpp src/service/ArticleService.h
-        src/utils/DboAppender.h src/utils/DboInstence.h
-        src/utils/JsonSerializer.h src/utils/JsonUnserializer.h)
+add_executable(xiaosu
+        src/main.cpp
+        src/define.h
+        src/model/systemlog.h
+        src/model/user.h
+        src/model/userinfo.h
+        src/model/article.h
+        src/model/category.h
+        src/service/BaseService.h
+        src/service/BaseService.cpp
+        src/service/ApplicationService.h
+        src/service/ApplicationService.cpp
+        src/service/ArticleService.h
+        src/service/ArticleService.cpp
+        src/utils/singleton.h
+        src/utils/DboAppender.h
+        src/utils/DboInstence.h
+        src/utils/JsonSerializer.h
+        src/utils/JsonUnserializer.h
+        src/utils/authorizeinstance.h
+        src/utils/authorizeinstance.cpp)
 
 target_link_libraries(xiaosu booster cppcms curl cpr wtdbo wtdbomysql
         /usr/local/lib/libMailCore.a etpan xml2 sasl2 tidy ctemplate ssl crypto icudata

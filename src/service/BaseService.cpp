@@ -3,11 +3,12 @@
 //
 
 #include "BaseService.h"
-#include "utils/JsonSerializer.h"
 
 #include <cppcms/http_response.h>
 #include <cppcms/http_request.h>
 #include <cppcms/url_dispatcher.h>
+
+#include "utils/JsonSerializer.h"
 
 BaseService::BaseService(cppcms::service &srv)
 	: application(srv)

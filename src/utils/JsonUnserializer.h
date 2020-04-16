@@ -8,16 +8,16 @@
 #include "define.h"
 #include "DboInstence.h"
 
+#include <chrono>
+#include <iomanip>
+#include <type_traits>
+
+#include <rapidjson/document.h>
+
 #include <Wt/Dbo/ptr.h>
 #include <Wt/Dbo/Field.h>
 #include <Wt/Dbo/weak_ptr.h>
 #include <Wt/Dbo/collection.h>
-
-#include <rapidjson/document.h>
-
-#include <chrono>
-#include <iomanip>
-#include <type_traits>
 
 class JsonUnserializer
 {
