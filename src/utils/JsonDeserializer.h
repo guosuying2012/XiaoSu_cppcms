@@ -2,8 +2,8 @@
 // Created by yengsu on 2020/3/9.
 //
 
-#ifndef XIAOSU_JSONUNSERIALIZER_H
-#define XIAOSU_JSONUNSERIALIZER_H
+#ifndef XIAOSU_JSONDESERIALIZER_H
+#define XIAOSU_JSONDESERIALIZER_H
 
 #include "define.h"
 #include "DboInstence.h"
@@ -19,15 +19,15 @@
 #include <Wt/Dbo/weak_ptr.h>
 #include <Wt/Dbo/collection.h>
 
-class JsonUnserializer
+class JsonDeserializer
 {
 public:
-	JsonUnserializer() = default;
-	virtual ~JsonUnserializer() = default;
-	JsonUnserializer(const JsonUnserializer&) = delete;
-	void operator=(const JsonUnserializer&) = delete;
-	JsonUnserializer(const JsonUnserializer&&) = delete;
-	void operator=(const JsonUnserializer&&) = delete;
+	JsonDeserializer() = default;
+	virtual ~JsonDeserializer() = default;
+	JsonDeserializer(const JsonDeserializer&) = delete;
+	void operator=(const JsonDeserializer&) = delete;
+	JsonDeserializer(const JsonDeserializer&&) = delete;
+	void operator=(const JsonDeserializer&&) = delete;
 
     const Wt::Dbo::Session *session() const { return DboInstance::Instance().Session().get(); }
 
@@ -226,8 +226,8 @@ private:
 template<typename C>
 void json_unserializer(const std::string& strJson, C& pObject)
 {
-    JsonUnserializer serializer;
+    JsonDeserializer serializer;
     serializer.unserialize(strJson, pObject);
 }
 
-#endif //XIAOSU_JSONUNSERIALIZER_H
+#endif //XIAOSU_JSONDESERIALIZER_H

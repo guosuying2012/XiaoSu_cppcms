@@ -16,7 +16,7 @@
 #include "model/userinfo.h"
 #include "model/category.h"
 #include "utils/JsonSerializer.h"
-#include "utils/JsonUnserializer.h"
+#include "utils/JsonDeserializer.h"
 #include "utils/authorizeinstance.h"
 
 using cppcms::http::response;
@@ -60,11 +60,16 @@ void ArticleService::article(const std::string& strArticleId)
     {
         const std::unique_ptr<dbo::Session>& pSession = dbo_session();
         dbo::Transaction transaction(*pSession);
-        dbo::ptr<Article> pArticle = pSession->load<Article>(strArticleId);
+        dbo::ptr<Article> pArticle = pSession->find<Article>().where("article_id=?").bind(strArticleId);
 
         //获取博客
         if (request().request_method() == "GET")
         {
+            if (!pArticle)
+            {
+                response().out() << json_serializer(response::not_found, action(), "未找到相关内容");
+                return;
+            }
             response().out() << json_serializer(pArticle, response::ok, action(), "获取成功");
             return;
         }
@@ -75,7 +80,7 @@ void ArticleService::article(const std::string& strArticleId)
         if (strToken.empty())
         {
             //提示用户要带上TOKEN  bad_request
-            response().out() << json_serializer(response::unauthorized, action(), "认证失败");
+            response().out() << json_serializer(response::bad_request, action(), "认证失败");
             return;
         }
 
@@ -90,12 +95,6 @@ void ArticleService::article(const std::string& strArticleId)
                 return;
             }
             add_article();
-            return;
-        }
-
-        if (!pArticle)
-        {
-            response().out() << json_serializer(response::not_found, action(), "未找到博客");
             return;
         }
 
@@ -117,11 +116,6 @@ void ArticleService::article(const std::string& strArticleId)
             delete_article(pArticle);
             return;
         }
-    }
-    catch (const dbo::ObjectNotFoundException& ex)
-    {
-        PLOG_ERROR << ex.what();
-        response().out() << json_serializer(response::not_found, action(), "未找到博客");
     }
     catch (const std::exception& ex)
     {

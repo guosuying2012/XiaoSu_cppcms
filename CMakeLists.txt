@@ -26,7 +26,7 @@ add_executable(xiaosu
         src/utils/DboAppender.h
         src/utils/DboInstence.h
         src/utils/JsonSerializer.h
-        src/utils/JsonUnserializer.h
+        src/utils/JsonDeserializer.h
         src/utils/authorizeinstance.h
         src/utils/authorizeinstance.cpp)
 
