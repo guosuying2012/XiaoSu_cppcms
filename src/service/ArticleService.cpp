@@ -17,7 +17,7 @@
 #include "model/category.h"
 #include "utils/JsonSerializer.h"
 #include "utils/JsonDeserializer.h"
-#include "utils/authorizeinstance.h"
+#include "utils/AuthorizeInstance.h"
 
 using cppcms::http::response;
 
@@ -60,17 +60,26 @@ void ArticleService::article(const std::string& strArticleId)
     {
         const std::unique_ptr<dbo::Session>& pSession = dbo_session();
         dbo::Transaction transaction(*pSession);
-        dbo::ptr<Article> pArticle = pSession->find<Article>().where("article_id=?").bind(strArticleId);
+        dbo::ptr<Article> pArticle = pSession->find<Article>()
+                .where("article_id=?")
+                .bind(strArticleId);
 
         //获取博客
         if (request().request_method() == "GET")
         {
             if (!pArticle)
             {
-                response().out() << json_serializer(response::not_found, action(), "未找到相关内容");
+	            response().status(response::not_found);
+                response().out() << json_serializer(response::not_found,
+                		                            action(),
+                		                            "未找到相关内容");
                 return;
             }
-            response().out() << json_serializer(pArticle, response::ok, action(), "获取成功");
+	        response().status(response::ok);
+            response().out() << json_serializer(pArticle,
+            		                            response::ok,
+            		                            action(),
+            		                            "获取成功");
             return;
         }
 
@@ -80,7 +89,10 @@ void ArticleService::article(const std::string& strArticleId)
         if (strToken.empty())
         {
             //提示用户要带上TOKEN  bad_request
-            response().out() << json_serializer(response::bad_request, action(), "认证失败");
+	        response().status(response::bad_request);
+            response().out() << json_serializer(response::bad_request,
+							                    action(),
+							                    "认证失败");
             return;
         }
 
@@ -89,6 +101,7 @@ void ArticleService::article(const std::string& strArticleId)
         {
             if (request().raw_post_data().second <= 0)
             {
+	            response().status(response::precondition_failed);
                 response().out() << json_serializer(response::precondition_failed,
                                                     action(),
                                                     "添加失败,未收到需要添加的内容。");
@@ -103,7 +116,10 @@ void ArticleService::article(const std::string& strArticleId)
         {
             if (request().raw_post_data().second <= 0)
             {
-                response().out() << json_serializer(response::precondition_failed, action(), "修改失败");
+	            response().status(response::precondition_failed);
+                response().out() << json_serializer(response::precondition_failed,
+							                        action(),
+							                        "修改失败");
                 return;
             }
             modify_article(pArticle);
@@ -120,7 +136,10 @@ void ArticleService::article(const std::string& strArticleId)
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
+	    response().status(response::internal_server_error);
+        response().out() << json_serializer(response::internal_server_error,
+							                action(),
+							                ex.what());
     }
 }
 
@@ -135,7 +154,10 @@ void ArticleService::add_article()
     {
         //捕捉到TOKEN不合法，不能放行
         PLOG_ERROR << verify.second.str();
-        response().out() << json_serializer(response::unauthorized, action(), verify.second);
+	    response().status(response::unauthorized);
+        response().out() << json_serializer(response::unauthorized,
+							                action(),
+							                verify.second);
         return;
     }
 
@@ -153,7 +175,10 @@ void ArticleService::add_article()
         //判断有效性
         if (!pArticle->category())
         {
-            response().out() << json_serializer(response::not_found, action(), "添加失败,未找到分类。");
+	        response().status(response::not_found);
+            response().out() << json_serializer(response::not_found,
+							                    action(),
+							                    "添加失败,未找到分类。");
             return;
         }
 
@@ -177,16 +202,24 @@ void ArticleService::add_article()
                 PLOG_ERROR << "请注意，有违规操作！！！"
                            << "Token: " << strToken
                            << ",UserId : " << strUserId;
-                response().out() << json_serializer(response::ok, action(), "检测违规操作");
+	            response().status(response::ok);
+                response().out() << json_serializer(response::ok,
+							                        action(),
+							                        "检测违规操作");
                 return;
             }
         }
 
         //通过标题判断重复提交
-        Articles articles = pSession->find<Article>().where("article_title=?").bind(pArticle->title());
-        if (articles.size() > 0)
+        Articles articles = pSession->find<Article>()
+                .where("article_title=?")
+        		.bind(pArticle->title());
+        if (!articles.empty())
         {
-            response().out() << json_serializer(response::found, action(), "添加失败,博客已存在");
+	        response().status(response::found);
+            response().out() << json_serializer(response::found,
+							                    action(),
+							                    "添加失败,博客已存在");
             return;
         }
 
@@ -194,22 +227,35 @@ void ArticleService::add_article()
         dbo::ptr<Article> pAddedPtr = pSession->add<Article>(pArticle);
         if (pAddedPtr)
         {
-            response().out() << json_serializer(pAddedPtr, response::created, action(), "添加成功");
+	        response().status(response::created);
+            response().out() << json_serializer(pAddedPtr,
+							                    response::created,
+							                    action(),
+							                    "添加成功");
         }
         else
         {
-            response().out() << json_serializer(response::precondition_failed, action(), "添加失败");
+	        response().status(response::precondition_failed);
+            response().out() << json_serializer(response::precondition_failed,
+							                    action(),
+							                    "添加失败");
         }
     }
     catch (const dbo::ObjectNotFoundException& ex)
     {
         PLOG_DEBUG << ex.what();
-        response().out() << json_serializer(response::not_found, action(), "未找到相关记录");
+	    response().status(response::not_found);
+        response().out() << json_serializer(response::not_found,
+							                action(),
+							                "未找到相关记录");
     }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
+	    response().status(response::internal_server_error);
+        response().out() << json_serializer(response::internal_server_error,
+							                action(),
+							                ex.what());
     }
 }
 
@@ -224,14 +270,20 @@ void ArticleService::modify_article(dbo::ptr<Article>& pArticle)
     {
         //捕捉到TOKEN不合法，不能放行
         PLOG_ERROR << verify.second.str();
-        response().out() << json_serializer(response::unauthorized, action(), verify.second);
+	    response().status(response::unauthorized);
+        response().out() << json_serializer(response::unauthorized,
+							                action(),
+							                verify.second);
         return;
     }
 
     if (!pArticle)
     {
         //失败，未找到相关
-        response().out() << json_serializer(response::not_found, action(), "修改失败,未找到该博文");
+	    response().status(response::not_found);
+        response().out() << json_serializer(response::not_found,
+							                action(),
+							                "修改失败,未找到该博文");
         return;
     }
 
@@ -246,7 +298,10 @@ void ArticleService::modify_article(dbo::ptr<Article>& pArticle)
         {
             //无权操作别人的博文
             PLOG_ERROR << "有用户在执行修改操作时不属于他的文章：" << strUserId << "Token: " << strToken;
-            response().out() << json_serializer(response::unauthorized, action(), "权限不足");
+	        response().status(response::unauthorized);
+            response().out() << json_serializer(response::unauthorized,
+							                    action(),
+							                    "权限不足");
             return;
         }
     }
@@ -285,12 +340,16 @@ void ArticleService::modify_article(dbo::ptr<Article>& pArticle)
             pArticle.modify()->describe(pModify->describe());
         }
 
+	    response().status(response::ok);
         response().out() << json_serializer(response::ok, action(), "修改成功");
     }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
+	    response().status(response::internal_server_error);
+        response().out() << json_serializer(response::internal_server_error,
+							                action(),
+							                ex.what());
     }
 }
 
@@ -305,14 +364,20 @@ void ArticleService::delete_article(dbo::ptr<Article>& pArticle)
     {
         //捕捉到TOKEN不合法，不能放行
         PLOG_ERROR << verify.second.str();
-        response().out() << json_serializer(response::unauthorized, action(), verify.second);
+	    response().status(response::unauthorized);
+        response().out() << json_serializer(response::unauthorized,
+							                action(),
+							                verify.second);
         return;
     }
 
     if (!pArticle)
     {
         //失败，未找到相关
-        response().out() << json_serializer(response::not_found, action(), "删除失败,未找到博文.");
+	    response().status(response::not_found);
+        response().out() << json_serializer(response::not_found,
+							                action(),
+							                "删除失败,未找到博文.");
         return;
     }
 
@@ -327,7 +392,10 @@ void ArticleService::delete_article(dbo::ptr<Article>& pArticle)
         {
             //无权操作别人的博文
             PLOG_ERROR << "有用户在执行删除操作时不属于他的文章：" << strUserId << "Token: " << strToken;
-            response().out() << json_serializer(response::unauthorized, action(), "权限不足");
+	        response().status(response::unauthorized);
+            response().out() << json_serializer(response::unauthorized,
+							                    action(),
+							                    "权限不足");
             return;
         }
     }
@@ -335,12 +403,16 @@ void ArticleService::delete_article(dbo::ptr<Article>& pArticle)
     try
     {
         pArticle.remove();
+	    response().status(response::ok);
         response().out() << json_serializer(response::ok, action(), "删除成功");
     }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
+	    response().status(response::internal_server_error);
+        response().out() << json_serializer(response::internal_server_error,
+							                action(),
+							                ex.what());
     }
 }
 
@@ -356,7 +428,10 @@ void ArticleService::move_to(const std::string& strArticleId,
     if (strToken.empty())
     {
         //提示用户要带上TOKEN  bad_request
-        response().out() << json_serializer(response::unauthorized, action(), "请先登陆");
+	    response().status(response::unauthorized);
+        response().out() << json_serializer(response::unauthorized,
+							                action(),
+							                "请先登陆");
         return;
     }
 
@@ -366,7 +441,10 @@ void ArticleService::move_to(const std::string& strArticleId,
     {
         //捕捉到TOKEN不合法，不能放行
         PLOG_ERROR << verify.second.str();
-        response().out() << json_serializer(response::unauthorized, action(), verify.second);
+	    response().status(response::unauthorized);
+        response().out() << json_serializer(response::unauthorized,
+							                action(),
+							                verify.second);
         return;
     }
 
@@ -374,12 +452,17 @@ void ArticleService::move_to(const std::string& strArticleId,
     {
         const std::unique_ptr<dbo::Session>& pSession = dbo_session();
         dbo::Transaction transaction(*pSession);
-        dbo::ptr<Article> pArticle = pSession->find<Article>().where("article_id=?").bind(strArticleId);
+        dbo::ptr<Article> pArticle = pSession->find<Article>()
+                .where("article_id=?")
+                .bind(strArticleId);
 
         if (!pArticle)
         {
             //失败，未找到相关
-            response().out() << json_serializer(response::not_found, action(), "移动失败,未找到博文");
+	        response().status(response::not_found);
+            response().out() << json_serializer(response::not_found,
+							                    action(),
+							                    "移动失败,未找到博文");
             return;
         }
 
@@ -394,7 +477,10 @@ void ArticleService::move_to(const std::string& strArticleId,
             {
                 //无权操作别人的博文
                 PLOG_ERROR << "有用户在执行移动操作时不属于他的文章：" << strUserId << "Token: " << strToken;
-                response().out() << json_serializer(response::unauthorized, action(), "权限不足");
+	            response().status(response::unauthorized);
+                response().out() << json_serializer(response::unauthorized,
+							                        action(),
+							                        "权限不足");
                 return;
             }
         }
@@ -406,7 +492,10 @@ void ArticleService::move_to(const std::string& strArticleId,
             if (!pUser)
             {
                 //未找到相关
-                response().out() << json_serializer(response::not_found, action(), "移动失败,未找到用户");
+	            response().status(response::not_found);
+                response().out() << json_serializer(response::not_found,
+							                        action(),
+							                        "移动失败,未找到用户");
                 return;
             }
 
@@ -415,24 +504,32 @@ void ArticleService::move_to(const std::string& strArticleId,
 
         if (strMoveTo == "category")
         {
-            dbo::ptr<Category> pCategory = pSession->find<Category>().where("category_id=?").bind(strId);
-            //dbo::ptr<Category> pCategory = pSession->load<Category>(strId);
+            dbo::ptr<Category> pCategory = pSession->find<Category>()
+                    .where("category_id=?")
+                    .bind(strId);
             if (!pCategory)
             {
                 //未找到相关
-                response().out() << json_serializer(response::not_found, action(), "移动失败,未找到分类");
+	            response().status(response::not_found);
+                response().out() << json_serializer(response::not_found,
+							                        action(),
+							                        "移动失败,未找到分类");
                 return;
             }
 
             pArticle.modify()->category(pCategory);
         }
 
+	    response().status(response::ok);
         response().out() << json_serializer(response::ok, action(), "移动成功");
     }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
+	    response().status(response::internal_server_error);
+        response().out() << json_serializer(response::internal_server_error,
+							                action(),
+							                ex.what());
     }
 }
 
@@ -443,12 +540,19 @@ void ArticleService::all_articles()
 		const std::unique_ptr<dbo::Session>& pSession = dbo_session();
 		dbo::Transaction transaction(*pSession);
 		Articles vecArticles = pSession->find<Article>();
-        response().out() << json_serializer(vecArticles, response::ok, action(), "获取成功");
+		response().status(response::ok);
+        response().out() << json_serializer(vecArticles,
+							                response::ok,
+							                action(),
+							                "获取成功");
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
+		response().status(response::internal_server_error);
+        response().out() << json_serializer(response::internal_server_error,
+							                action(),
+							                ex.what());
 	}
 }
 
@@ -463,12 +567,19 @@ void ArticleService::all_articles(int nPageSize, int nCurrentPage)
 		        .offset((nCurrentPage -1 ) * nPageSize)
 		        .limit(nPageSize);
 
-        response().out() << json_serializer(vecArticles, response::ok, action(), "获取成功");
+		response().status(response::ok);
+        response().out() << json_serializer(vecArticles,
+							                response::ok,
+							                action(),
+							                "获取成功");
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
+		response().status(response::internal_server_error);
+        response().out() << json_serializer(response::internal_server_error,
+							                action(),
+							                ex.what());
 	}
 }
 
@@ -481,17 +592,27 @@ void ArticleService::all_article_by_user(const std::string& strUserId)
 
         dbo::ptr<User> pUser = pSession->load<User>(strUserId);
 
-        response().out() << json_serializer(pUser->getArticles(), response::ok, action(), "获取成功");
+		response().status(response::ok);
+        response().out() << json_serializer(pUser->getArticles(),
+							                response::ok,
+							                action(),
+							                "获取成功");
 	}
     catch (const dbo::ObjectNotFoundException& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(response::not_found, action(), "指定用户不存在");
+	    response().status(response::not_found);
+        response().out() << json_serializer(response::not_found,
+							                action(),
+							                "指定用户不存在");
     }
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
+		response().status(response::internal_server_error);
+        response().out() << json_serializer(response::internal_server_error,
+							                action(),
+							                ex.what());
 	}
 }
 
@@ -510,12 +631,19 @@ void ArticleService::all_article_by_user(const std::string& strUserId,
 				.offset((nCurrentPage -1 ) * nPageSize)
 				.limit(nPageSize);
 
-        response().out() << json_serializer(vecArticles, response::ok, action(), "获取成功");
+		response().status(response::ok);
+        response().out() << json_serializer(vecArticles,
+							                response::ok,
+							                action(),
+							                "获取成功");
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
+		response().status(response::internal_server_error);
+        response().out() << json_serializer(response::internal_server_error,
+							                action(),
+							                ex.what());
 	}
 }
 
@@ -528,17 +656,27 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId)
 
         dbo::ptr<Category> pCategory = pSession->load<Category>(strCategoryId);
 
-        response().out() << json_serializer(pCategory->getArticles(), response::ok, action(), "获取成功");
+	    response().status(response::ok);
+        response().out() << json_serializer(pCategory->getArticles(),
+							                response::ok,
+							                action(),
+							                "获取成功");
     }
     catch (const dbo::ObjectNotFoundException& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(response::not_found, action(), "没有找到相关分类");
+	    response().status(response::not_found);
+        response().out() << json_serializer(response::not_found,
+							                action(),
+							                "没有找到相关分类");
     }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
-        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
+	    response().status(response::internal_server_error);
+        response().out() << json_serializer(response::internal_server_error,
+							                action(),
+							                ex.what());
     }
 }
 
@@ -557,11 +695,18 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId,
 				.offset((nCurrentPage -1 ) * nPageSize)
 				.limit(nPageSize);
 
-        response().out() << json_serializer(vecArticles, response::ok, action(), "获取成功");
+		response().status(response::ok);
+        response().out() << json_serializer(vecArticles,
+							                response::ok,
+							                action(),
+							                "获取成功");
 	}
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
-        response().out() << json_serializer(response::internal_server_error, action(), ex.what());
+		response().status(response::internal_server_error);
+        response().out() << json_serializer(response::internal_server_error,
+							                action(),
+							                ex.what());
 	}
 }

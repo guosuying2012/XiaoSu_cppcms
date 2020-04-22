@@ -1,4 +1,4 @@
-#include "authorizeinstance.h"
+#include "AuthorizeInstance.h"
 #include "define.h"
 #include<jwt-cpp/jwt.h>
 
@@ -12,11 +12,12 @@ void AuthorizeInstance::initialization(const cppcms::json::value& settings)
 }
 
 cppcms::string_key AuthorizeInstance::create_token(const cppcms::string_key& strUserId,
-                                               const cppcms::string_key& strSubject)
+                                                   const cppcms::string_key& strSubject,
+                                                   unsigned unMinutes)
 {
     return  jwt::create()
             .set_issuer(m_strIssuer)
-            .set_expires_at(std::chrono::system_clock::now() + std::chrono::minutes{60})
+            .set_expires_at(std::chrono::system_clock::now() + std::chrono::minutes{unMinutes})
             .set_subject(strSubject)
             .set_audience(strUserId)
             .set_not_before(std::chrono::system_clock::now())

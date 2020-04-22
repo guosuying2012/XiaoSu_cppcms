@@ -22,13 +22,21 @@ add_executable(xiaosu
         src/service/ApplicationService.cpp
         src/service/ArticleService.h
         src/service/ArticleService.cpp
+        src/service/UserService.h
+        src/service/UserService.cpp
+        src/service/CategoryService.h
+        src/service/CategoryService.cpp
+        src/utils/md5.h
+        src/utils/md5.cpp
+        src/utils/sha256.h
+        src/utils/sha256.cpp
         src/utils/singleton.h
         src/utils/DboAppender.h
         src/utils/DboInstence.h
         src/utils/JsonSerializer.h
         src/utils/JsonDeserializer.h
-        src/utils/authorizeinstance.h
-        src/utils/authorizeinstance.cpp)
+        src/utils/AuthorizeInstance.h
+        src/utils/AuthorizeInstance.cpp)
 
 target_link_libraries(xiaosu booster cppcms curl cpr wtdbo wtdbomysql
         /usr/local/lib/libMailCore.a etpan xml2 sasl2 tidy ctemplate ssl crypto icudata

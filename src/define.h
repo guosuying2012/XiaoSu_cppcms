@@ -9,13 +9,13 @@
 #include <cpr/cpr.h>
 #include <plog/Log.h>
 
-#include <openssl/md5.h>
-#include <openssl/sha.h>
-
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/uuid/uuid_generators.hpp>
+
+#include "utils/md5.h"
+#include "utils/sha256.h"
 
 class User;
 class UserInfo;
@@ -45,39 +45,7 @@ static int startsWith(const std::string& strSrc, const std::string& strSub)
 
 static int endsWith(const std::string& strSrc, const std::string& strSub)
 {
-    return strSrc.rfind(strSub) == (strSrc.length()-strSub.length()) ? 1 : 0;
-}
-
-static cppcms::string_key md5(const std::string& srcStr)
-{
-    unsigned char mdStr[33] = {0};
-    MD5((const unsigned char *)srcStr.c_str(), srcStr.length(), mdStr);
-
-    char buf[65] = {0};
-    char tmp[3] = {0};
-    for (int i = 0; i < 32; i++)
-    {
-        sprintf(tmp, "%02x", mdStr[i]);
-        strcat(buf, tmp);
-    }
-    buf[32] = '\0';
-    return cppcms::string_key(buf);
-}
-
-static cppcms::string_key sha256(const std::string& srcStr)
-{
-    unsigned char mdStr[33] = {0};
-    SHA256((const unsigned char *)srcStr.c_str(), srcStr.length(), mdStr);
-
-    char buf[65] = {0};
-    char tmp[3] = {0};
-    for (int i = 0; i < 32; i++)
-    {
-        sprintf(tmp, "%02x", mdStr[i]);
-        strcat(buf, tmp);
-    }
-    buf[32] = '\0';
-    return cppcms::string_key(buf);
+    return strSrc.rfind(strSub) == (strSrc.length() - strSub.length()) ? 1 : 0;
 }
 
 #endif

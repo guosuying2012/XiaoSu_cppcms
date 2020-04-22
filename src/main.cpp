@@ -2,7 +2,7 @@
 #include <cppcms/applications_pool.h>
 
 #include "utils/DboAppender.h"
-#include "utils/authorizeinstance.h"
+#include "utils/AuthorizeInstance.h"
 #include "service/ApplicationService.h"
 
 //debug

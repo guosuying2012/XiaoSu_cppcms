@@ -18,7 +18,7 @@ class BaseService : public cppcms::application
 {
 public:
     explicit BaseService(cppcms::service& srv);
-    virtual ~BaseService() override = default;
+    ~BaseService() override = default;
 
     inline cppcms::string_key action() const
     {

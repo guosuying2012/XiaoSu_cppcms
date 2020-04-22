@@ -14,6 +14,8 @@
 #include "model/systemlog.h"
 
 #include "service/ArticleService.h"
+#include "service/UserService.h"
+#include "service/CategoryService.h"
 #include "utils/JsonSerializer.h"
 
 ApplicationService::ApplicationService(cppcms::service& srv)
@@ -24,6 +26,10 @@ ApplicationService::ApplicationService(cppcms::service& srv)
 		//attach service
 		attach(new ArticleService(srv),"article",
 				"/web/api/v1/article{1}","/web/api/v1/article((/?.*))", 1);
+        attach(new UserService(srv), "user",
+               "/web/api/v1/user{1}", "/web/api/v1/user((/?.*))", 1);
+        attach(new CategoryService(srv), "category",
+               "/web/api/v1/category{1}", "/web/api/v1/category((/?.*))", 1);
 
 		//map class
         const std::unique_ptr<dbo::Session>& pSession = dbo_session();

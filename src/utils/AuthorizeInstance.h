@@ -13,7 +13,8 @@ public:
 
     void initialization(const cppcms::json::value& settings);
     cppcms::string_key create_token(const cppcms::string_key& strUserId,
-                                    const cppcms::string_key& strSubject = cppcms::string_key("Authorize"));
+                                    const cppcms::string_key& strSubject = cppcms::string_key("Authorize"),
+                                    unsigned unMinutes = 60);
     std::pair<bool, cppcms::string_key> verify_token(const cppcms::string_key& strToken);
     cppcms::string_key get_user_id( const cppcms::string_key& strToken );
     bool is_admin( const cppcms::string_key& strToken );
