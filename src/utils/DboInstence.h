@@ -40,7 +40,7 @@ public:
 
 private:
     DboInstance() = default;
-    virtual ~DboInstance() = default;
+    ~DboInstance() override = default;
     DboInstance(const DboInstance&) = delete;
     DboInstance(const DboInstance&&) = delete;
     DboInstance& operator=(const DboInstance&) = delete;

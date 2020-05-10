@@ -13,10 +13,11 @@ int main(int argc, char* argv[])
 {
     try
     {
-        //debug
+        // debug
+        //===============================->
         static plog::ColorConsoleAppender<plog::TxtFormatter> colorConsole;
         plog::init(plog::verbose, &colorConsole);
-        //===
+        //<-===============================
 
         //static DboAppender dbo;
         cppcms::service srv(argc,argv);

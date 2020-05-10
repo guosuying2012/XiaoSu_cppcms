@@ -1,6 +1,6 @@
 #include "AuthorizeInstance.h"
 #include "define.h"
-#include<jwt-cpp/jwt.h>
+#include <jwt-cpp/jwt.h>
 
 void AuthorizeInstance::initialization(const cppcms::json::value& settings)
 {

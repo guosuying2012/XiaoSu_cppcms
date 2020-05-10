@@ -43,7 +43,7 @@ ApplicationService::ApplicationService(cppcms::service& srv)
 	}
 	catch (const std::exception& ex)
 	{
-        //PLOG_DEBUG << ex.what();
+        PLOG_DEBUG << ex.what();
 	}
 }
 

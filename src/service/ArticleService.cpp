@@ -24,8 +24,6 @@ using cppcms::http::response;
 ArticleService::ArticleService(cppcms::service &srv)
 	: BaseService(srv)
 {
-    //GET
-
 	//获取文章列表
     dispatcher().map("GET", "/all_articles/page/(\\d+)/(\\d+)", &ArticleService::all_articles, this, 1, 2);
     dispatcher().map("GET", "/all_articles", &ArticleService::all_articles, this);
@@ -54,6 +52,20 @@ ArticleService::ArticleService(cppcms::service &srv)
     dispatcher().map("PATCH", "/(.*)/move_to/(user|category)/(.*)", &ArticleService::move_to, this, 1, 2, 3);
 }
 
+/**
+* showdoc
+* @catalog 文章管理
+* @title 获取指定文章
+* @description 通过文章ID获取该文章详细信息
+* @method GET
+* @url https://www.yengsu.com/xiaosu/web/api/v1/article/{ID}
+* @return {"action": "/web/api/v1/article/{article_id}","msg": "获取成功","status": 200,"data": {}}
+* @return_param action string 接口PATH
+* @return_param msg string 服务器消息
+* @return_param status int HTTP状态码
+* @return_param data JsonObject 该文章详细信息
+* @remark 文章对象请参阅数据字典, 状态码可以参阅全局状态码或者HTTP状态码.
+*/
 void ArticleService::article(const std::string& strArticleId)
 {
     try
@@ -143,6 +155,22 @@ void ArticleService::article(const std::string& strArticleId)
     }
 }
 
+/**
+* showdoc
+* @catalog 文章管理
+* @title 添加博客
+* @description 添加一条博客
+* @method POST
+* @url https://www.yengsu.com/xiaosu/web/api/v1/article
+* @header authorization 必选 string 认证Token
+* @json_param {"article_id":"63CFC8A0-A03B-46B2-A8DF-D2E5C151305E","user_id":"6101d51a-c54b-4594-acf3-25ee1c1374bd","category_id":"0a3ed3e4-2d9d-4d02-a57a-2c5554d28ae4","article_title":"测试添加博客文章","article_cover":"文章封面","article_describe":"博客简介","article_content":"博客内容，测试测试测试测试测试测试测试测试测试测试测试","article_time":1589112234,"article_last_change":1589112234,"article_approval_status":false}
+* @return {"action":"/web/api/v1/article","msg":"添加成功","status":201,"data": ""}
+* @return_param action string URL_PATH
+* @return_param msg string 服务器返回的消息
+* @return_param status int HTTP状态码
+* @return_param data JsonObject 添加成功的文章基础信息
+* @remark 文章对象请参阅数据字典, 状态码可以参阅全局状态码或者HTTP状态码.
+*/
 void ArticleService::add_article()
 {
     bool bIsAdmin = false;
@@ -259,6 +287,22 @@ void ArticleService::add_article()
     }
 }
 
+/**
+* showdoc
+* @catalog 文章管理
+* @title 修改博客
+* @description 修改指定ID的博客信息
+* @method PUT
+* @url https://www.yengsu.com/xiaosu/web/api/v1/article/{ID}
+* @header authorization 必选 string 认证Token
+* @json_param {"user_id": "D60A8A03-A0F4-4B30-BC01-C813DF337302","category_id": "1","article_title": "测试修改文章","article_cover": "封面地址","article_describe": "博客简介","article_content": "博客内容，测试测试测试测试测试测试测试测试测试测试测试"}
+* @return {"action": "/web/api/v1/article/{article_id}","msg": "修改成功","status": 200,"data": {}}
+* @return_param action string URL_PATH
+* @return_param msg string 服务器返回的消息
+* @return_param status int HTTP状态码
+* @return_param data NULL 无
+* @remark 文章对象请参阅数据字典, 状态码可以参阅全局状态码或者HTTP状态码.
+*/
 void ArticleService::modify_article(dbo::ptr<Article>& pArticle)
 {
     bool bIsAdmin = false;
@@ -353,6 +397,21 @@ void ArticleService::modify_article(dbo::ptr<Article>& pArticle)
     }
 }
 
+/**
+* showdoc
+* @catalog 文章管理
+* @title 删除博客
+* @description 删除指定ID的博客信息
+* @method DELETE
+* @url https://www.yengsu.com/xiaosu/web/api/v1/article/{article_id}
+* @header authorization 必选 string 认证Token
+* @return {"action": "/web/api/v1/article/{article_id}","msg": "删除成功","status": 200,"data": {}}
+* @return_param action string URL_PATH
+* @return_param msg string 服务器返回的消息
+* @return_param status int HTTP状态码
+* @return_param data NULL 无
+* @remark 文章对象请参阅数据字典, 状态码可以参阅全局状态码或者HTTP状态码.
+*/
 void ArticleService::delete_article(dbo::ptr<Article>& pArticle)
 {
     bool bIsAdmin = false;
@@ -416,6 +475,21 @@ void ArticleService::delete_article(dbo::ptr<Article>& pArticle)
     }
 }
 
+/**
+* showdoc
+* @catalog 文章管理
+* @title 移动博客
+* @description 将文章移动到指定用户/分类下
+* @method GET
+* @url https://www.yengsu.com/xiaosu/web/api/v1/article/{article_id}/move_to/(user|category)/{user_id/category_id}
+* @header authorization 必选 string 认证Token
+* @return {"action": "/web/api/v1/article/{article_id}","msg": "移动成功","status": 200,"data": {}}
+* @return_param action string URL_PATH
+* @return_param msg string 服务器返回的消息
+* @return_param status int HTTP状态码
+* @return_param data NULL 无
+* @remark 文章对象请参阅数据字典, 状态码可以参阅全局状态码或者HTTP状态码.
+*/
 void ArticleService::move_to(const std::string& strArticleId,
                              const std::string& strMoveTo,
                              const std::string& strId)
@@ -533,6 +607,20 @@ void ArticleService::move_to(const std::string& strArticleId,
     }
 }
 
+/**
+* showdoc
+* @catalog 文章管理
+* @title 获取所有文章
+* @description 此接口返回所有状态正常的博客
+* @method GET
+* @url https://www.yengsu.com/xiaosu/web/api/v1/article/all_articles
+* @return {"action":"/web/api/v1/article/all_articles","msg":"获取成功","status":200,"data":[]}
+* @return_param action string 接口PATH
+* @return_param msg string 服务器消息
+* @return_param status int HTTP状态码
+* @return_param data JsonArray 文章列表
+* @remark 文章对象请参阅数据字典, 状态码可以参阅全局状态码或者HTTP状态码.
+*/
 void ArticleService::all_articles()
 {
 	try
@@ -556,6 +644,20 @@ void ArticleService::all_articles()
 	}
 }
 
+/**
+* showdoc
+* @catalog 文章管理
+* @title 分页获取所有文章
+* @description 此接口返回所有状态正常的博客
+* @method GET
+* @url https://www.yengsu.com/xiaosu/web/api/v1/article/all_articles/page/{PageSize}/{CurrentPage}
+* @return {"action":"/web/api/v1/article/all_articles","msg":"获取成功","status":200,"data":[]}
+* @return_param action string 接口PATH
+* @return_param msg string 服务器消息
+* @return_param status int HTTP状态码
+* @return_param data JsonArray 文章列表
+* @remark 文章对象请参阅数据字典, 状态码可以参阅全局状态码或者HTTP状态码.
+*/
 void ArticleService::all_articles(int nPageSize, int nCurrentPage)
 {
 	try
@@ -583,6 +685,20 @@ void ArticleService::all_articles(int nPageSize, int nCurrentPage)
 	}
 }
 
+/**
+* showdoc
+* @catalog 文章管理
+* @title 获取指定用户的博客
+* @description 此接口返回指定用户所有状态正常的博客
+* @method GET
+* @url https://www.yengsu.com/xiaosu/web/api/v1/article/all_article_by_user/{user_id}
+* @return {"action":"/web/api/v1/article/all_articles","msg":"获取成功","status":200,"data":[]}
+* @return_param action string 接口PATH
+* @return_param msg string 服务器消息
+* @return_param status int HTTP状态码
+* @return_param data JsonArray 文章列表
+* @remark 文章对象请参阅数据字典, 状态码可以参阅全局状态码或者HTTP状态码.
+*/
 void ArticleService::all_article_by_user(const std::string& strUserId)
 {
 	try
@@ -616,6 +732,20 @@ void ArticleService::all_article_by_user(const std::string& strUserId)
 	}
 }
 
+/**
+* showdoc
+* @catalog 文章管理
+* @title 分页获取指定用户的博客
+* @description 此接口返回指定用户所有状态正常的博客
+* @method GET
+* @url https://www.yengsu.com/xiaosu/web/api/v1/article/all_article_by_user/page/{user_id}/{PageSize}/{CurrentPage}
+* @return {"action":"/web/api/v1/article/all_articles","msg":"获取成功","status":200,"data":[]}
+* @return_param action string 接口PATH
+* @return_param msg string 服务器消息
+* @return_param status int HTTP状态码
+* @return_param data JsonArray 文章列表
+* @remark 文章对象请参阅数据字典, 状态码可以参阅全局状态码或者HTTP状态码.
+*/
 void ArticleService::all_article_by_user(const std::string& strUserId,
                                          int nPageSize,
                                          int nCurrentPage)
@@ -647,6 +777,20 @@ void ArticleService::all_article_by_user(const std::string& strUserId,
 	}
 }
 
+/**
+* showdoc
+* @catalog 文章管理
+* @title 分页获取指定分类的博客
+* @description 此接口返回指定分类所有状态正常的博客
+* @method GET
+* @url https://www.yengsu.com/xiaosu/web/api/v1/article/all_article_by_category
+* @return {"action":"/web/api/v1/article/all_articles","msg":"获取成功","status":200,"data":[]}
+* @return_param action string 接口PATH
+* @return_param msg string 服务器消息
+* @return_param status int HTTP状态码
+* @return_param data JsonArray 文章列表
+* @remark 文章对象请参阅数据字典, 状态码可以参阅全局状态码或者HTTP状态码.
+*/
 void ArticleService::all_article_by_category(const std::string& strCategoryId)
 {
     try
@@ -680,6 +824,20 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId)
     }
 }
 
+/**
+* showdoc
+* @catalog 文章管理
+* @title 分页获取指定分类的博客
+* @description 此接口返回指定分类所有状态正常的博客
+* @method GET
+* @url https://www.yengsu.com/xiaosu/web/api/v1/article/all_article_by_category/page/{category_id}/{PageSize}/{CurrentPage}
+* @return {"action":"/web/api/v1/article/all_articles","msg":"获取成功","status":200,"data":[]}
+* @return_param action string 接口PATH
+* @return_param msg string 服务器消息
+* @return_param status int HTTP状态码
+* @return_param data JsonArray 文章列表
+* @remark 文章对象请参阅数据字典, 状态码可以参阅全局状态码或者HTTP状态码.
+*/
 void ArticleService::all_article_by_category(const std::string& strCategoryId,
                                              int nPageSize,
                                              int nCurrentPage)

@@ -38,6 +38,4 @@ add_executable(xiaosu
         src/utils/AuthorizeInstance.h
         src/utils/AuthorizeInstance.cpp)
 
-target_link_libraries(xiaosu booster cppcms curl cpr wtdbo wtdbomysql
-        /usr/local/lib/libMailCore.a etpan xml2 sasl2 tidy ctemplate ssl crypto icudata
-        icui18n icuio icu-le-hb iculx icutest icutu icuuc pthread uuid glib-2.0 uchardet z)
+target_link_libraries(xiaosu booster cppcms wtdbo wtdbomysql crypto)

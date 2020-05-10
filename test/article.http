@@ -1,0 +1,85 @@
+##################### 获取文章列表 #################################
+GET {{baseUrl}}{{basePath}}/article/all_articles
+Accept: application/json
+
+###
+GET {{baseUrl}}{{basePath}}/article/all_articles/page/10/1
+Accept: application/json
+
+###
+##################################################################
+
+###################### 根据分类获取文章列表 #########################
+GET {{baseUrl}}{{basePath}}/article/all_article_by_category/{{testCategoryId}}
+Accept: application/json
+
+###
+GET {{baseUrl}}{{basePath}}/article/all_article_by_category/page/{{testCategoryId}}/10/1
+Accept: application/json
+
+###
+##################################################################
+
+######################## 根据用户获取文章列表 #######################
+GET {{baseUrl}}{{basePath}}/article/all_article_by_user/{{testUserId}}
+Accept: application/json
+
+###
+GET {{baseUrl}}{{basePath}}/article/all_article_by_user/page/{{testUserId}}/10/1
+Accept: application/json
+
+###
+##################################################################
+
+######################## 文章操作 #################################
+GET {{baseUrl}}{{basePath}}/article/{{testArticleId}}
+Accept: application/json
+
+###
+POST {{baseUrl}}{{basePath}}/article
+Accept: application/json
+authorization: {{testToken}}
+
+     {
+        "user_id": "{{testUserId}}",
+        "category_id": "{{testCategoryId}}",
+        "article_title": "测试添加博客文章",
+        "article_cover": "文章封面",
+        "article_describe": "博客简介",
+        "article_content": "博客内容，测试测试测试测试测试测试测试测试测试测试测试"
+    }
+
+###
+PUT {{baseUrl}}{{basePath}}/article/{{testArticleId}}
+Accept: application/json
+authorization: {{testToken}}
+
+     {
+        "user_id": "D60A8A03-A0F4-4B30-BC01-C813DF337302",
+        "category_id": "1",
+        "article_title": "测试修改文章",
+        "article_cover": "封面地址",
+        "article_describe": "博客简介",
+        "article_content": "博客内容，测试测试测试测试测试测试测试测试测试测试测试"
+    }
+
+###
+DELETE {{baseUrl}}{{basePath}}/article/{{testArticleId}}
+Accept: application/json
+authorization: {{testToken}}
+
+###
+################################################################
+
+########################## 移动文章 #############################
+PATCH {{baseUrl}}{{basePath}}/article/{{testArticleId}}/move_to/user/{{testUserId}}
+Accept: application/json
+authorization: {{testToken}}
+
+###
+PATCH {{baseUrl}}{{basePath}}/article/{{testArticleId}}/move_to/category/{{testCategoryId}}
+Accept: application/json
+authorization: {{testToken}}
+
+###
+################################################################
