@@ -17,6 +17,16 @@ public:
 		m_strCategoryName.clear();
 	}
 
+	inline std::string id() const
+	{
+	    return m_strId;
+	}
+
+    inline Articles getArticles() const
+    {
+        return this->m_vecArticles;
+    }
+
 public:
 	template<class Action>
 	void persist(Action& a)
@@ -26,11 +36,6 @@ public:
 		dbo::field(a, m_strCategoryName, "category_name");
 		dbo::field(a, m_nRank, "category_rank");
 		dbo::hasMany(a, m_vecArticles, dbo::ManyToOne, "category_id");
-	}
-
-	inline Articles getArticles() const
-	{
-		return this->m_vecArticles;
 	}
 
 private:

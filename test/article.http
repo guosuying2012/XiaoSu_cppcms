@@ -41,12 +41,11 @@ Accept: application/json
 authorization: {{testToken}}
 
      {
-        "user_id": "{{testUserId}}",
         "category_id": "{{testCategoryId}}",
-        "article_title": "测试添加博客文章",
+        "article_title": "testtesttesttesttesttest",
         "article_cover": "文章封面",
-        "article_describe": "博客简介",
-        "article_content": "博客内容，测试测试测试测试测试测试测试测试测试测试测试"
+        "article_describe": "sdfgsdfewrwqttrytzvcvcv",
+        "article_content": "asdasdsdfsdfsdfgafdsgdsfgsdfgsdfgsdfgsdfgdfgsdfg"
     }
 
 ###
@@ -55,7 +54,6 @@ Accept: application/json
 authorization: {{testToken}}
 
      {
-        "user_id": "D60A8A03-A0F4-4B30-BC01-C813DF337302",
         "category_id": "1",
         "article_title": "测试修改文章",
         "article_cover": "封面地址",
@@ -72,12 +70,12 @@ authorization: {{testToken}}
 ################################################################
 
 ########################## 移动文章 #############################
-PATCH {{baseUrl}}{{basePath}}/article/{{testArticleId}}/move_to/user/{{testUserId}}
+PATCH {{baseUrl}}{{basePath}}/article/{{testArticleId}}/move_to/user/7bea8042-8811-4bc0-a86f-0e8bcf0c2a2e
 Accept: application/json
 authorization: {{testToken}}
 
 ###
-PATCH {{baseUrl}}{{basePath}}/article/{{testArticleId}}/move_to/category/{{testCategoryId}}
+PATCH {{baseUrl}}{{basePath}}/article/{{testArticleId}}/move_to/category/a3d94539-c661-45e3-ba43-6deddcf5d0c9
 Accept: application/json
 authorization: {{testToken}}
 

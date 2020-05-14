@@ -72,13 +72,15 @@ void ArticleService::article(const std::string& strArticleId)
     {
         const std::unique_ptr<dbo::Session>& pSession = dbo_session();
         dbo::Transaction transaction(*pSession);
-        dbo::ptr<Article> pArticle = pSession->find<Article>()
-                .where("article_id=?")
-                .bind(strArticleId);
+        dbo::ptr<Article> pArticle = nullptr;
 
         //获取博客
         if (request().request_method() == "GET")
         {
+            pArticle = pSession->find<Article>()
+                    .where("article_id=? and article_approval_status=1")
+                    .bind(strArticleId);
+
             if (!pArticle)
             {
 	            response().status(response::not_found);
@@ -123,6 +125,12 @@ void ArticleService::article(const std::string& strArticleId)
             return;
         }
 
+        bool bIsAdmin = AuthorizeInstance::Instance().is_admin(strToken);
+
+        pArticle = pSession->find<Article>()
+                .where(bIsAdmin ? "article_id=?" : "article_id=? and article_approval_status=1")
+                .bind(strArticleId);
+
         //修改
         if (request().request_method() == "PUT")
         {
@@ -151,7 +159,7 @@ void ArticleService::article(const std::string& strArticleId)
 	    response().status(response::internal_server_error);
         response().out() << json_serializer(response::internal_server_error,
 							                action(),
-							                ex.what());
+                                            "未知错误!请联系管理员");
     }
 }
 
@@ -163,7 +171,7 @@ void ArticleService::article(const std::string& strArticleId)
 * @method POST
 * @url https://www.yengsu.com/xiaosu/web/api/v1/article
 * @header authorization 必选 string 认证Token
-* @json_param {"article_id":"63CFC8A0-A03B-46B2-A8DF-D2E5C151305E","user_id":"6101d51a-c54b-4594-acf3-25ee1c1374bd","category_id":"0a3ed3e4-2d9d-4d02-a57a-2c5554d28ae4","article_title":"测试添加博客文章","article_cover":"文章封面","article_describe":"博客简介","article_content":"博客内容，测试测试测试测试测试测试测试测试测试测试测试","article_time":1589112234,"article_last_change":1589112234,"article_approval_status":false}
+* @json_param {"category_id":"0a3ed3e4-2d9d-4d02-a57a-2c5554d28ae4","article_title":"测试添加博客文章","article_cover":"文章封面","article_describe":"博客简介","article_content":"博客内容，测试测试测试测试测试测试测试测试测试测试测试"}
 * @return {"action":"/web/api/v1/article","msg":"添加成功","status":201,"data": ""}
 * @return_param action string URL_PATH
 * @return_param msg string 服务器返回的消息
@@ -200,7 +208,7 @@ void ArticleService::add_article()
                request().raw_post_data().second);
         json_unserializer(strBuffer, pArticle);
 
-        //判断有效性
+        //判断有效性  不能只判空就认定对象有效
         if (!pArticle->category())
         {
 	        response().status(response::not_found);
@@ -210,36 +218,44 @@ void ArticleService::add_article()
             return;
         }
 
-        //管理员专用通道
-        bIsAdmin = AuthorizeInstance::Instance().is_admin(strToken);
-
-        if (!bIsAdmin)
+        const dbo::ptr<Category>& pCategory = dbo_session()->find<Category>()
+                .where("category_id=?").bind(pArticle->category()->id());
+        if (!pCategory)
         {
-            //TOKEN合法
-            const std::string& strUserId = AuthorizeInstance::Instance().get_user_id(strToken);
-            //const dbo::ptr<User>& pUser = pSession->find<User>().where("user_id=?").bind(strUserId);
-            const dbo::ptr<User>& pUser = pSession->load<User>(strUserId);
-            //用户应该是TOKEN里面的
-            if (pUser)
-            {
-                pArticle.modify()->user(pUser);
-            }
-            else
-            {
-                //如果通过TOKEN没找到用户说明有入侵
-                PLOG_ERROR << "请注意，有违规操作！！！"
-                           << "Token: " << strToken
-                           << ",UserId : " << strUserId;
-	            response().status(response::ok);
-                response().out() << json_serializer(response::ok,
-							                        action(),
-							                        "检测违规操作");
-                return;
-            }
+            response().status(response::not_found);
+            response().out() << json_serializer(response::not_found,
+                                                action(),
+                                                "添加失败,未找到分类。");
+            return;
+        }
+
+        //TOKEN合法
+        const std::string& strUserId = AuthorizeInstance::Instance().get_user_id(strToken);
+        const dbo::ptr<User>& pUser = pSession->find<User>()
+                .where("user_id=?")
+                .bind(strUserId)
+                .where("user_status=?") //不仅存在，状态还必须正确
+                .bind(UserStatus::ENABLE);
+        //用户应该是TOKEN里面的
+        if (pUser)
+        {
+            pArticle.modify()->user(pUser);
+        }
+        else
+        {
+            //如果通过TOKEN没找到用户说明有入侵
+            PLOG_ERROR << "请注意，有违规操作！！！"
+                       << "Token: " << strToken
+                       << ",UserId : " << strUserId;
+            response().status(response::ok);
+            response().out() << json_serializer(response::ok,
+                                                action(),
+                                                "检测违规操作");
+            return;
         }
 
         //通过标题判断重复提交
-        Articles articles = pSession->find<Article>()
+        const Articles& articles = pSession->find<Article>()
                 .where("article_title=?")
         		.bind(pArticle->title());
         if (!articles.empty())
@@ -252,7 +268,7 @@ void ArticleService::add_article()
         }
 
         //判断添加是否成功
-        dbo::ptr<Article> pAddedPtr = pSession->add<Article>(pArticle);
+        const dbo::ptr<Article>& pAddedPtr = pSession->add<Article>(pArticle);
         if (pAddedPtr)
         {
 	        response().status(response::created);
@@ -269,21 +285,13 @@ void ArticleService::add_article()
 							                    "添加失败");
         }
     }
-    catch (const dbo::ObjectNotFoundException& ex)
-    {
-        PLOG_DEBUG << ex.what();
-	    response().status(response::not_found);
-        response().out() << json_serializer(response::not_found,
-							                action(),
-							                "未找到相关记录");
-    }
     catch (const std::exception& ex)
     {
         PLOG_ERROR << ex.what();
 	    response().status(response::internal_server_error);
         response().out() << json_serializer(response::internal_server_error,
 							                action(),
-							                ex.what());
+                                            "未知错误!请联系管理员");
     }
 }
 
@@ -295,7 +303,7 @@ void ArticleService::add_article()
 * @method PUT
 * @url https://www.yengsu.com/xiaosu/web/api/v1/article/{ID}
 * @header authorization 必选 string 认证Token
-* @json_param {"user_id": "D60A8A03-A0F4-4B30-BC01-C813DF337302","category_id": "1","article_title": "测试修改文章","article_cover": "封面地址","article_describe": "博客简介","article_content": "博客内容，测试测试测试测试测试测试测试测试测试测试测试"}
+* @json_param {"category_id": "1","article_title": "测试修改文章","article_cover": "封面地址","article_describe": "博客简介","article_content": "博客内容，测试测试测试测试测试测试测试测试测试测试测试"}
 * @return {"action": "/web/api/v1/article/{article_id}","msg": "修改成功","status": 200,"data": {}}
 * @return_param action string URL_PATH
 * @return_param msg string 服务器返回的消息
@@ -363,10 +371,20 @@ void ArticleService::modify_article(dbo::ptr<Article>& pArticle)
         {
             pArticle.modify()->user(pModify->user());
         }*/
-        if (pModify->category())//分类
+        /*if (pModify->category())//分类   不应该只是判空就认定分类对象有效
+        {
+            pArticle.modify()->category(pModify->category());
+        }*/
+
+        // 判断分类对象是否有效
+        //===============================->
+        //json解析对象时已经通过传过来的ID在数据库里面查询了一次，所以这里只需要判断是否为空就好
+        if (pModify->category())
         {
             pArticle.modify()->category(pModify->category());
         }
+        //<-===============================
+
         if (!pModify->title().empty())//标题
         {
             pArticle.modify()->title(pModify->title());
@@ -384,6 +402,7 @@ void ArticleService::modify_article(dbo::ptr<Article>& pArticle)
             pArticle.modify()->describe(pModify->describe());
         }
 
+        pArticle.modify()->update_last_change();
 	    response().status(response::ok);
         response().out() << json_serializer(response::ok, action(), "修改成功");
     }
@@ -393,7 +412,7 @@ void ArticleService::modify_article(dbo::ptr<Article>& pArticle)
 	    response().status(response::internal_server_error);
         response().out() << json_serializer(response::internal_server_error,
 							                action(),
-							                ex.what());
+                                            "未知错误!请联系管理员");
     }
 }
 
@@ -461,7 +480,7 @@ void ArticleService::delete_article(dbo::ptr<Article>& pArticle)
 
     try
     {
-        pArticle.remove();
+        pArticle.modify()->approval(false);
 	    response().status(response::ok);
         response().out() << json_serializer(response::ok, action(), "删除成功");
     }
@@ -471,7 +490,7 @@ void ArticleService::delete_article(dbo::ptr<Article>& pArticle)
 	    response().status(response::internal_server_error);
         response().out() << json_serializer(response::internal_server_error,
 							                action(),
-							                ex.what());
+                                            "未知错误!请联系管理员");
     }
 }
 
@@ -522,12 +541,15 @@ void ArticleService::move_to(const std::string& strArticleId,
         return;
     }
 
+    //管理员专用通道
+    bIsAdmin = AuthorizeInstance::Instance().is_admin(strToken);
+
     try
     {
         const std::unique_ptr<dbo::Session>& pSession = dbo_session();
         dbo::Transaction transaction(*pSession);
         dbo::ptr<Article> pArticle = pSession->find<Article>()
-                .where("article_id=?")
+                .where(bIsAdmin ? "article_id=?" : "article_id=? and article_approval_status=1")
                 .bind(strArticleId);
 
         if (!pArticle)
@@ -539,9 +561,6 @@ void ArticleService::move_to(const std::string& strArticleId,
 							                    "移动失败,未找到博文");
             return;
         }
-
-        //管理员专用通道
-        bIsAdmin = AuthorizeInstance::Instance().is_admin(strToken);
 
         if (!bIsAdmin)
         {
@@ -561,8 +580,11 @@ void ArticleService::move_to(const std::string& strArticleId,
 
         if (strMoveTo == "user")
         {
-            dbo::ptr<User> pUser = pSession->find<User>().where("user_id=?").bind(strId);
-            //dbo::ptr<User> pUser = pSession->load<User>(strId);
+            dbo::ptr<User> pUser = pSession->find<User>()
+                    .where("user_id=?")
+                    .bind(strId)
+                    .where("user_status=?")
+                    .bind(UserStatus::ENABLE);
             if (!pUser)
             {
                 //未找到相关
@@ -603,7 +625,7 @@ void ArticleService::move_to(const std::string& strArticleId,
 	    response().status(response::internal_server_error);
         response().out() << json_serializer(response::internal_server_error,
 							                action(),
-							                ex.what());
+                                            "未知错误!请联系管理员");
     }
 }
 
@@ -623,11 +645,24 @@ void ArticleService::move_to(const std::string& strArticleId,
 */
 void ArticleService::all_articles()
 {
+    bool bIsAdmin = false;
+    const std::string& strToken = request().getenv("HTTP_AUTHORIZATION");
+
+    if (!strToken.empty())
+    {
+        const std::pair<bool, cppcms::string_key>& verify = AuthorizeInstance::Instance().verify_token(strToken);
+        if (verify.first)
+        {
+            bIsAdmin = AuthorizeInstance::Instance().is_admin(strToken);
+        }
+    }
+
 	try
 	{
 		const std::unique_ptr<dbo::Session>& pSession = dbo_session();
 		dbo::Transaction transaction(*pSession);
-		Articles vecArticles = pSession->find<Article>();
+		Articles vecArticles = pSession->find<Article>()
+		        .where(bIsAdmin ? "" : "article_approval_status=1");
 		response().status(response::ok);
         response().out() << json_serializer(vecArticles,
 							                response::ok,
@@ -640,7 +675,7 @@ void ArticleService::all_articles()
 		response().status(response::internal_server_error);
         response().out() << json_serializer(response::internal_server_error,
 							                action(),
-							                ex.what());
+                                            "未知错误!请联系管理员");
 	}
 }
 
@@ -660,12 +695,24 @@ void ArticleService::all_articles()
 */
 void ArticleService::all_articles(int nPageSize, int nCurrentPage)
 {
+    bool bIsAdmin = false;
+    const std::string& strToken = request().getenv("HTTP_AUTHORIZATION");
+
+    if (!strToken.empty())
+    {
+        const std::pair<bool, cppcms::string_key>& verify = AuthorizeInstance::Instance().verify_token(strToken);
+        if (verify.first)
+        {
+            bIsAdmin = AuthorizeInstance::Instance().is_admin(strToken);
+        }
+    }
+
 	try
 	{
 		const std::unique_ptr<dbo::Session>& pSession = dbo_session();
 		dbo::Transaction transaction(*pSession);
-		Articles vecArticles = pSession->find<Article>();
-		vecArticles = pSession->find<Article>()
+		Articles vecArticles = pSession->find<Article>()
+		        .where(bIsAdmin ? "" : "article_approval_status=1")
 		        .offset((nCurrentPage -1 ) * nPageSize)
 		        .limit(nPageSize);
 
@@ -681,7 +728,7 @@ void ArticleService::all_articles(int nPageSize, int nCurrentPage)
 		response().status(response::internal_server_error);
         response().out() << json_serializer(response::internal_server_error,
 							                action(),
-							                ex.what());
+                                            "未知错误!请联系管理员");
 	}
 }
 
@@ -701,34 +748,58 @@ void ArticleService::all_articles(int nPageSize, int nCurrentPage)
 */
 void ArticleService::all_article_by_user(const std::string& strUserId)
 {
+    bool bIsAdmin = false;
+    std::vector<dbo::ptr<Article> > vecArticles;
+    const std::string& strToken = request().getenv("HTTP_AUTHORIZATION");
+
+    if (!strToken.empty())
+    {
+        const std::pair<bool, cppcms::string_key>& verify = AuthorizeInstance::Instance().verify_token(strToken);
+        if (verify.first)
+        {
+            bIsAdmin = AuthorizeInstance::Instance().is_admin(strToken);
+        }
+    }
+
 	try
 	{
 		const std::unique_ptr<dbo::Session>& pSession = dbo_session();
 		dbo::Transaction transaction(*pSession);
+        dbo::ptr<User> pUser = pSession->find<User>()
+                .where("user_id=?")
+                .where(bIsAdmin ? "" : "user_status=0")
+                .bind(strUserId);
 
-        dbo::ptr<User> pUser = pSession->load<User>(strUserId);
+        // 将异常状态的文章排除，前提是非管理员
+        //===============================->
+        if (!bIsAdmin)
+        {
+            vecArticles.clear();
+            const Articles& articles = pUser->getArticles();
+            for (const dbo::ptr<Article>& item : articles)
+            {
+                if (!item->approval())
+                {
+                    continue;
+                }
+                vecArticles.push_back(item);
+            }
+        }
+        //<-===============================
 
 		response().status(response::ok);
-        response().out() << json_serializer(pUser->getArticles(),
+        response().out() << json_serializer(vecArticles,
 							                response::ok,
 							                action(),
 							                "获取成功");
 	}
-    catch (const dbo::ObjectNotFoundException& ex)
-    {
-        PLOG_ERROR << ex.what();
-	    response().status(response::not_found);
-        response().out() << json_serializer(response::not_found,
-							                action(),
-							                "指定用户不存在");
-    }
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
 		response().status(response::internal_server_error);
         response().out() << json_serializer(response::internal_server_error,
 							                action(),
-							                ex.what());
+                                            "未知错误!请联系管理员");
 	}
 }
 
@@ -750,16 +821,46 @@ void ArticleService::all_article_by_user(const std::string& strUserId,
                                          int nPageSize,
                                          int nCurrentPage)
 {
+    bool bIsAdmin = false;
+    std::vector<dbo::ptr<Article> > vecArticles;
+    const std::string& strToken = request().getenv("HTTP_AUTHORIZATION");
+
+    if (!strToken.empty())
+    {
+        const std::pair<bool, cppcms::string_key>& verify = AuthorizeInstance::Instance().verify_token(strToken);
+        if (verify.first)
+        {
+            bIsAdmin = AuthorizeInstance::Instance().is_admin(strToken);
+        }
+    }
+
 	try
 	{
 		const std::unique_ptr<dbo::Session>& pSession = dbo_session();
-		dbo::Transaction transaction(*pSession);
-		Articles vecArticles = pSession->find<Article>();
-		vecArticles = pSession->find<Article>()
-				.where("user_id=?")
-				.bind(strUserId)
-				.offset((nCurrentPage -1 ) * nPageSize)
-				.limit(nPageSize);
+        dbo::Transaction transaction(*pSession);
+        dbo::ptr<User> pUser = pSession->find<User>()
+                .where("user_id=?")
+                .where(bIsAdmin ? "" : "user_status=0")
+                .bind(strUserId)
+                .offset((nCurrentPage -1 ) * nPageSize)
+                .limit(nPageSize);
+
+        // 将异常状态的文章排除，前提是非管理员
+        //===============================->
+        if (!bIsAdmin)
+        {
+            vecArticles.clear();
+            const Articles& articles = pUser->getArticles();
+            for (const dbo::ptr<Article>& item : articles)
+            {
+                if (!item->approval())
+                {
+                    continue;
+                }
+                vecArticles.push_back(item);
+            }
+        }
+        //<-===============================
 
 		response().status(response::ok);
         response().out() << json_serializer(vecArticles,
@@ -773,7 +874,7 @@ void ArticleService::all_article_by_user(const std::string& strUserId,
 		response().status(response::internal_server_error);
         response().out() << json_serializer(response::internal_server_error,
 							                action(),
-							                ex.what());
+							                "未知错误!请联系管理员");
 	}
 }
 
@@ -793,26 +894,50 @@ void ArticleService::all_article_by_user(const std::string& strUserId,
 */
 void ArticleService::all_article_by_category(const std::string& strCategoryId)
 {
+    bool bIsAdmin = false;
+    std::vector<dbo::ptr<Article> > vecArticles;
+    const std::string& strToken = request().getenv("HTTP_AUTHORIZATION");
+
+    if (!strToken.empty())
+    {
+        const std::pair<bool, cppcms::string_key>& verify = AuthorizeInstance::Instance().verify_token(strToken);
+        if (verify.first)
+        {
+            bIsAdmin = AuthorizeInstance::Instance().is_admin(strToken);
+        }
+    }
+
     try
     {
         const std::unique_ptr<dbo::Session>& pSession = dbo_session();
         dbo::Transaction transaction(*pSession);
 
-        dbo::ptr<Category> pCategory = pSession->load<Category>(strCategoryId);
+        dbo::ptr<Category> pCategory = pSession->find<Category>()
+                .where("category_id=?")
+                .bind(strCategoryId);
+
+        // 将异常状态的文章排除，前提是非管理员
+        //===============================->
+        if (!bIsAdmin)
+        {
+            vecArticles.clear();
+            const Articles& articles = pCategory->getArticles();
+            for (const dbo::ptr<Article>& item : articles)
+            {
+                if (!item->approval())
+                {
+                    continue;
+                }
+                vecArticles.push_back(item);
+            }
+        }
+        //<-===============================
 
 	    response().status(response::ok);
-        response().out() << json_serializer(pCategory->getArticles(),
+        response().out() << json_serializer(vecArticles,
 							                response::ok,
 							                action(),
 							                "获取成功");
-    }
-    catch (const dbo::ObjectNotFoundException& ex)
-    {
-        PLOG_ERROR << ex.what();
-	    response().status(response::not_found);
-        response().out() << json_serializer(response::not_found,
-							                action(),
-							                "没有找到相关分类");
     }
     catch (const std::exception& ex)
     {
@@ -820,7 +945,7 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId)
 	    response().status(response::internal_server_error);
         response().out() << json_serializer(response::internal_server_error,
 							                action(),
-							                ex.what());
+							                "未知错误!请联系管理员");
     }
 }
 
@@ -842,14 +967,29 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId,
                                              int nPageSize,
                                              int nCurrentPage)
 {
+    bool bIsAdmin = false;
+    const std::string& strToken = request().getenv("HTTP_AUTHORIZATION");
+
+    // 这里是为了判定是否是管理员（是管理员就无视异常状态，不是管理员就排除异常状态）
+    //===============================->
+    if (!strToken.empty())
+    {
+        const std::pair<bool, cppcms::string_key>& verify = AuthorizeInstance::Instance().verify_token(strToken);
+        if (verify.first)
+        {
+            bIsAdmin = AuthorizeInstance::Instance().is_admin(strToken);
+        }
+    }
+    //<-===============================
+
 	try
 	{
 		const std::unique_ptr<dbo::Session>& pSession = dbo_session();
 		dbo::Transaction transaction(*pSession);
-		Articles vecArticles = pSession->find<Article>();
-		vecArticles = pSession->find<Article>()
+		const Articles& vecArticles =  pSession->find<Article>()
 		        .where("category_id=?")
 		        .bind(strCategoryId)
+		        .where("article_approval_status=1")
 				.offset((nCurrentPage -1 ) * nPageSize)
 				.limit(nPageSize);
 
@@ -865,6 +1005,6 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId,
 		response().status(response::internal_server_error);
         response().out() << json_serializer(response::internal_server_error,
 							                action(),
-							                ex.what());
+                                            "未知错误!请联系管理员");
 	}
 }

@@ -41,44 +41,59 @@ public:
         m_pCategory = pCategory;
     }
 
-    std::string title() const
+    inline std::string title() const
     {
         return m_strTitle;
     }
 
-    void title(const std::string &strTitle)
+    inline void title(const std::string &strTitle)
     {
         m_strTitle = strTitle;
     }
 
-    std::string cover() const
+    inline std::string cover() const
     {
         return m_strCover;
     }
 
-    void cover(const std::string &strCover)
+    inline void cover(const std::string &strCover)
     {
         m_strCover = strCover;
     }
 
-    std::string content() const
+    inline std::string content() const
     {
         return m_strContent;
     }
 
-    void content(const std::string &strContent)
+    inline void content(const std::string &strContent)
     {
         m_strContent = strContent;
     }
 
-    std::string describe() const
+    inline std::string describe() const
     {
         return m_strDescribe;
     }
 
-    void describe(const std::string &strDescribe)
+    inline void describe(const std::string &strDescribe)
     {
         m_strDescribe = strDescribe;
+    }
+
+    inline bool approval() const
+    {
+	    return m_bApprovalStatus;
+    }
+
+    inline void approval(const bool bApproval)
+    {
+	    m_bApprovalStatus = bApproval;
+    }
+
+    inline void update_last_change()
+    {
+	    m_unLastChange = std::chrono::system_clock::now();
     }
 
 public:

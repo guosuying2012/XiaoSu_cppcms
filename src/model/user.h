@@ -37,6 +37,11 @@ public:
 		return this->m_vecArticles;
 	}
 
+	inline UserRole getUserRole() const
+	{
+	    return this->m_nRole;
+	}
+
 public:
 	template<class Action>
 	void persist(Action& a)
