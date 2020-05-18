@@ -5,9 +5,10 @@
 #include "utils/AuthorizeInstance.h"
 #include "service/ApplicationService.h"
 
-//debug
+// test
+//===============================->
 #include <plog/Appenders/ColorConsoleAppender.h>
-//===
+//<-===============================
 
 int main(int argc, char* argv[])
 {

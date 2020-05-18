@@ -59,6 +59,7 @@ ArticleService::ArticleService(cppcms::service &srv)
 * @description 通过文章ID获取该文章详细信息
 * @method GET
 * @url https://www.yengsu.com/xiaosu/web/api/v1/article/{ID}
+* @header authorization 选填 string 认证Token
 * @return {"action": "/web/api/v1/article/{article_id}","msg": "获取成功","status": 200,"data": {}}
 * @return_param action string 接口PATH
 * @return_param msg string 服务器消息
@@ -107,6 +108,16 @@ void ArticleService::article(const std::string& strArticleId)
             response().out() << json_serializer(response::bad_request,
 							                    action(),
 							                    "认证失败");
+            return;
+        }
+
+        const std::pair<bool, cppcms::string_key> verify = AuthorizeInstance::Instance().verify_token(strToken);
+        if (!verify.first)
+        {
+            response().status(response::unauthorized);
+            response().out() << json_serializer(response::unauthorized,
+                                                action(),
+                                                verify.second);
             return;
         }
 
@@ -172,7 +183,7 @@ void ArticleService::article(const std::string& strArticleId)
 * @url https://www.yengsu.com/xiaosu/web/api/v1/article
 * @header authorization 必选 string 认证Token
 * @json_param {"category_id":"0a3ed3e4-2d9d-4d02-a57a-2c5554d28ae4","article_title":"测试添加博客文章","article_cover":"文章封面","article_describe":"博客简介","article_content":"博客内容，测试测试测试测试测试测试测试测试测试测试测试"}
-* @return {"action":"/web/api/v1/article","msg":"添加成功","status":201,"data": ""}
+* @return {"action":"/web/api/v1/article","msg":"添加成功","status":201,"data": {}}
 * @return_param action string URL_PATH
 * @return_param msg string 服务器返回的消息
 * @return_param status int HTTP状态码
@@ -304,7 +315,7 @@ void ArticleService::add_article()
 * @url https://www.yengsu.com/xiaosu/web/api/v1/article/{ID}
 * @header authorization 必选 string 认证Token
 * @json_param {"category_id": "1","article_title": "测试修改文章","article_cover": "封面地址","article_describe": "博客简介","article_content": "博客内容，测试测试测试测试测试测试测试测试测试测试测试"}
-* @return {"action": "/web/api/v1/article/{article_id}","msg": "修改成功","status": 200,"data": {}}
+* @return {"action": "/web/api/v1/article/{article_id}","msg": "修改成功","status": 200,"data": ""}
 * @return_param action string URL_PATH
 * @return_param msg string 服务器返回的消息
 * @return_param status int HTTP状态码
@@ -424,7 +435,7 @@ void ArticleService::modify_article(dbo::ptr<Article>& pArticle)
 * @method DELETE
 * @url https://www.yengsu.com/xiaosu/web/api/v1/article/{article_id}
 * @header authorization 必选 string 认证Token
-* @return {"action": "/web/api/v1/article/{article_id}","msg": "删除成功","status": 200,"data": {}}
+* @return {"action": "/web/api/v1/article/{article_id}","msg": "删除成功","status": 200,"data": ""}
 * @return_param action string URL_PATH
 * @return_param msg string 服务器返回的消息
 * @return_param status int HTTP状态码
@@ -502,7 +513,7 @@ void ArticleService::delete_article(dbo::ptr<Article>& pArticle)
 * @method GET
 * @url https://www.yengsu.com/xiaosu/web/api/v1/article/{article_id}/move_to/(user|category)/{user_id/category_id}
 * @header authorization 必选 string 认证Token
-* @return {"action": "/web/api/v1/article/{article_id}","msg": "移动成功","status": 200,"data": {}}
+* @return {"action": "/web/api/v1/article/{article_id}","msg": "移动成功","status": 200,"data": ""}
 * @return_param action string URL_PATH
 * @return_param msg string 服务器返回的消息
 * @return_param status int HTTP状态码
@@ -636,6 +647,7 @@ void ArticleService::move_to(const std::string& strArticleId,
 * @description 此接口返回所有状态正常的博客
 * @method GET
 * @url https://www.yengsu.com/xiaosu/web/api/v1/article/all_articles
+* @header authorization 选填 string 认证Token
 * @return {"action":"/web/api/v1/article/all_articles","msg":"获取成功","status":200,"data":[]}
 * @return_param action string 接口PATH
 * @return_param msg string 服务器消息
@@ -686,6 +698,7 @@ void ArticleService::all_articles()
 * @description 此接口返回所有状态正常的博客
 * @method GET
 * @url https://www.yengsu.com/xiaosu/web/api/v1/article/all_articles/page/{PageSize}/{CurrentPage}
+* @header authorization 选填 string 认证Token
 * @return {"action":"/web/api/v1/article/all_articles","msg":"获取成功","status":200,"data":[]}
 * @return_param action string 接口PATH
 * @return_param msg string 服务器消息
@@ -739,6 +752,7 @@ void ArticleService::all_articles(int nPageSize, int nCurrentPage)
 * @description 此接口返回指定用户所有状态正常的博客
 * @method GET
 * @url https://www.yengsu.com/xiaosu/web/api/v1/article/all_article_by_user/{user_id}
+* @header authorization 选填 string 认证Token
 * @return {"action":"/web/api/v1/article/all_articles","msg":"获取成功","status":200,"data":[]}
 * @return_param action string 接口PATH
 * @return_param msg string 服务器消息
@@ -810,6 +824,7 @@ void ArticleService::all_article_by_user(const std::string& strUserId)
 * @description 此接口返回指定用户所有状态正常的博客
 * @method GET
 * @url https://www.yengsu.com/xiaosu/web/api/v1/article/all_article_by_user/page/{user_id}/{PageSize}/{CurrentPage}
+* @header authorization 选填 string 认证Token
 * @return {"action":"/web/api/v1/article/all_articles","msg":"获取成功","status":200,"data":[]}
 * @return_param action string 接口PATH
 * @return_param msg string 服务器消息
@@ -885,6 +900,7 @@ void ArticleService::all_article_by_user(const std::string& strUserId,
 * @description 此接口返回指定分类所有状态正常的博客
 * @method GET
 * @url https://www.yengsu.com/xiaosu/web/api/v1/article/all_article_by_category
+* @header authorization 选填 string 认证Token
 * @return {"action":"/web/api/v1/article/all_articles","msg":"获取成功","status":200,"data":[]}
 * @return_param action string 接口PATH
 * @return_param msg string 服务器消息
@@ -956,6 +972,7 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId)
 * @description 此接口返回指定分类所有状态正常的博客
 * @method GET
 * @url https://www.yengsu.com/xiaosu/web/api/v1/article/all_article_by_category/page/{category_id}/{PageSize}/{CurrentPage}
+* @header authorization 选填 string 认证Token
 * @return {"action":"/web/api/v1/article/all_articles","msg":"获取成功","status":200,"data":[]}
 * @return_param action string 接口PATH
 * @return_param msg string 服务器消息

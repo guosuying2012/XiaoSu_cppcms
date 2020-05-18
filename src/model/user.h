@@ -10,15 +10,17 @@
 enum class UserStatus
 {
 	ENABLE = 0,
-	DISABLE
+	DISABLE,
+
+	EMAIL_VERIFY,  //等待邮箱验证
 };
 
 enum class UserRole
 {
-	GUEST = 0,
-	GENERAL,
-	MEMBER,
-	ADMINISTRATOR = 750512656,
+	GUEST = 0,                  //游客
+	GENERAL,                    //普通用户
+	MEMBER,                     //会员
+	ADMINISTRATOR = 750512656,  //超级用户
 };
 
 class User
@@ -32,6 +34,21 @@ public:
 		m_strName.clear();
 	}
 
+	inline void setUserName(const std::string& strUserName)
+    {
+	    this->m_strName = strUserName;
+    }
+
+    inline void setUserStatus(const UserStatus& status)
+    {
+	    this->m_nStatus = status;
+    }
+
+    inline void setDisplayName(const std::string& strDisplayName)
+    {
+	    this->m_strDisplayName = strDisplayName;
+    }
+
 	inline Articles getArticles() const
 	{
 		return this->m_vecArticles;
@@ -41,6 +58,21 @@ public:
 	{
 	    return this->m_nRole;
 	}
+
+	inline void setUserRole(const UserRole& role)
+    {
+	    this->m_nRole = role;
+    }
+
+	inline dbo::weak_ptr<UserInfo> getUserInfo() const
+    {
+	    return this->m_pUserInfo;
+    }
+
+    inline void setUserInfo(const dbo::ptr<UserInfo>& pInfo)
+    {
+	    this->m_pUserInfo = pInfo;
+    }
 
 public:
 	template<class Action>
@@ -63,6 +95,24 @@ private:
 	Articles m_vecArticles;
 	std::string m_strDisplayName;
     dbo::weak_ptr<UserInfo> m_pUserInfo;
+};
+
+class Token
+{
+public:
+    inline void setToken(const std::string& strToken)
+    {
+        this->m_strToken = strToken;
+    }
+
+    template<class Action>
+    void persist(Action& a)
+    {
+        dbo::field(a, m_strToken, "token");
+    }
+
+private:
+    std::string m_strToken;
 };
 
 #endif //XIAOSU_USER_H
