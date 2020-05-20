@@ -13,13 +13,22 @@ public:
 	explicit UserService(cppcms::service& srv);
 	~UserService() override = default;
 
-	//test
-	void get_token();
-
     /**
      * 用户登陆
      */
 	void user_login();
+
+	/**
+	 * 获取所有用户列表(仅超级管理员使用)
+	 */
+	void get_user_list();
+
+	/**
+	 * 分页获取用户列表(仅超级管理员使用)
+	 * @param nPageSize 每页尺寸
+	 * @param nPageIndex 当前页码
+	 */
+	void get_user_list(unsigned nPageSize, unsigned nPageIndex);
 
 	/**
 	 * 获取用户信息

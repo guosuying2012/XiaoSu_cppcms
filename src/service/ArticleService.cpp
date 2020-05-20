@@ -706,7 +706,7 @@ void ArticleService::all_articles()
 * @return_param data JsonArray 文章列表
 * @remark 文章对象请参阅数据字典, 状态码可以参阅全局状态码或者HTTP状态码.
 */
-void ArticleService::all_articles(int nPageSize, int nCurrentPage)
+void ArticleService::all_articles(unsigned nPageSize, unsigned nCurrentPage)
 {
     bool bIsAdmin = false;
     const std::string& strToken = request().getenv("HTTP_AUTHORIZATION");
@@ -833,8 +833,8 @@ void ArticleService::all_article_by_user(const std::string& strUserId)
 * @remark 文章对象请参阅数据字典, 状态码可以参阅全局状态码或者HTTP状态码.
 */
 void ArticleService::all_article_by_user(const std::string& strUserId,
-                                         int nPageSize,
-                                         int nCurrentPage)
+                                         unsigned nPageSize,
+                                         unsigned nCurrentPage)
 {
     bool bIsAdmin = false;
     std::vector<dbo::ptr<Article> > vecArticles;
@@ -981,8 +981,8 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId)
 * @remark 文章对象请参阅数据字典, 状态码可以参阅全局状态码或者HTTP状态码.
 */
 void ArticleService::all_article_by_category(const std::string& strCategoryId,
-                                             int nPageSize,
-                                             int nCurrentPage)
+                                             unsigned nPageSize,
+                                             unsigned nCurrentPage)
 {
     bool bIsAdmin = false;
     const std::string& strToken = request().getenv("HTTP_AUTHORIZATION");

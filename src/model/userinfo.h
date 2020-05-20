@@ -86,7 +86,7 @@ public:
     {
         dbo::id(a, m_strId, "info_id", 36);
 		dbo::field(a, m_strIp, "user_ip", 20);
-        dbo::belongsTo(a, m_pUser, "user_id");
+        dbo::belongsTo(a, m_pUser, "user_info");
 		dbo::field(a, m_strEmail, "user_email", 50);
 		dbo::field(a, m_strPassword, "user_password");
         dbo::field(a, m_unRegTime, "user_registration");

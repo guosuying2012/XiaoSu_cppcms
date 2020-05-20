@@ -27,17 +27,17 @@ private:
     void article(const std::string& strArticleId);
 
     void all_articles();
-    void all_articles(int nPageSize, int nCurrentPage);
+    void all_articles(unsigned nPageSize, unsigned nCurrentPage);
 
     void all_article_by_user(const std::string& strUserId);
     void all_article_by_user(const std::string& strUserId,
-                             int nPageSize,
-                             int nCurrentPage);
+                             unsigned nPageSize,
+                             unsigned nCurrentPage);
 
     void all_article_by_category(const std::string& strCategoryId);
     void all_article_by_category(const std::string& strCategoryId,
-                                 int nPageSize,
-                                 int nCurrentPage);
+                                 unsigned nPageSize,
+                                 unsigned nCurrentPage);
 };
 
 
