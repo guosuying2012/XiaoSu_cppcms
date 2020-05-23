@@ -55,7 +55,7 @@ public:
 	/**
 	 * 修改密码
 	 */
-	 void modify_user_password();
+	 void modify_user_password(const std::string& strUserId = std::string());
 };
 
 

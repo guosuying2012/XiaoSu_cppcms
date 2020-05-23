@@ -103,11 +103,11 @@ public:
 			field.setValue(m_Document[field.name()].GetInt());
 		}
 	}
-    void act(const Wt::Dbo::FieldRef<bool>& __attribute__((unused)) field)  //一般表示状态
+    void act(const Wt::Dbo::FieldRef<bool>& field)
     {
-        //if (m_Document.HasMember(field.name()) && m_Document[field.name()].IsBool())
+        if (m_Document.HasMember(field.name()) && m_Document[field.name()].IsBool())
 		{
-            //field.setValue(m_Document[field.name()].GetBool());
+            field.setValue(m_Document[field.name()].GetBool());
 		}
 	}
 	void act(const Wt::Dbo::FieldRef<float>& field)

@@ -225,8 +225,8 @@ public:
         Wt::Dbo::ptr<T> v = field.value().query();
         if (v)
         {
-            //serialize(v);
-            m_writer.String(v.id());
+            serialize(v);
+            //m_writer.String(v.id());
         }
         else
         {

@@ -1,7 +1,7 @@
-
 //
 // Created by yengsu on 2020/4/21.
 //
+
 #include "UserService.h"
 #include "model/user.h"
 #include "model/userinfo.h"
@@ -25,7 +25,8 @@ UserService::UserService(cppcms::service &srv)
     dispatcher().map("GET", "/get_all_user_list", &UserService::get_user_list, this);
     dispatcher().map("GET", "/get_all_user_list/page/(\\d+)/(\\d+)", &UserService::get_user_list, this, 1, 2);
     dispatcher().map("POST", "/login", &UserService::user_login, this);
-    dispatcher().map("PUT", "/change_password", &UserService::modify_user_password, this);
+    dispatcher().map("PUT", "/change_password", &UserService::modify_user_password, this, 1);
+    dispatcher().map("PUT", "/change_password/(.*)", &UserService::modify_user_password, this, 1);
 
     dispatcher().map("GET", "/(.*)", &UserService::get_user_info, this, 1);
     dispatcher().map("DELETE", "/(.*)", &UserService::delete_user, this, 1);
@@ -120,71 +121,87 @@ void UserService::get_user_list()
         response().out() << json_serializer(response::bad_request,action(),"认证失败");
         return;
     }
+    std::pair<bool, cppcms::string_key> verify = AuthorizeInstance::Instance().verify_token(strToken);
+    if (!verify.first)
+    {
+        response().status(response::unauthorized);
+        response().out() << json_serializer(response::unauthorized,action(),"认证失败");
+        return;
+    }
     //<-===============================
 
     // 验证用户是不是超级管理员, 不信任Token直接数据库去找
     //===============================->
-    const std::string& strUserId = AuthorizeInstance::Instance().get_user_id(strToken);
-    const std::unique_ptr<dbo::Session>& pSession = dbo_session();
-    dbo::Transaction transaction(*pSession);
-    dbo::ptr<User> pUser = pSession->find<User>().where("user_id=?").bind(strUserId);
-    if (!pUser)
+    try
     {
-        response().status(response::bad_request);
-        response().out() << json_serializer(response::bad_request,action(),"认证失败");
-        return;
-    }
-    if (pUser->getUserRole() != UserRole::ADMINISTRATOR)
-    {
-        response().status(response::bad_request);
-        response().out() << json_serializer(response::bad_request,action(),"认证失败");
-        return;
-    }
-    //<-===============================
-
-    // 获取所有用户信息并序列化成JSON数据
-    //===============================->
-    Users users = pSession->find<User>();
-    const std::string& strJson = json_serializer(users, 200, action(), "获取用户列表成功");
-    //<-===============================
-
-    // 需要将敏感信息删除
-    //===============================->
-    rapidjson::Document document;
-    if (document.Parse(strJson).HasParseError())
-    {
-        response().status(response::internal_server_error);
-        response().out() << json_serializer(response::internal_server_error,action(),"未知错误");
-        return;
-    }
-
-    if (document.HasMember("data") && document["data"].IsArray())
-    {
-        rapidjson::Value& data = document["data"];
-        for (rapidjson::SizeType i = 0; i < data.Size(); ++i)
+        const std::string &strUserId = AuthorizeInstance::Instance().get_user_id(strToken);
+        const std::unique_ptr<dbo::Session> &pSession = dbo_session();
+        dbo::Transaction transaction(*pSession);
+        dbo::ptr<User> pUser = pSession->find<User>().where("user_id=?").bind(strUserId);
+        if (!pUser)
         {
-            rapidjson::Value& user = data[i];
-            if (user.HasMember("user_info") && user["user_info"].IsObject())
+            response().status(response::bad_request);
+            response().out() << json_serializer(response::bad_request, action(), "认证失败");
+            return;
+        }
+        if (pUser->getUserRole() != UserRole::ADMINISTRATOR)
+        {
+            response().status(response::bad_request);
+            response().out() << json_serializer(response::bad_request, action(), "认证失败");
+            return;
+        }
+        //<-===============================
+
+        // 获取所有用户信息并序列化成JSON数据
+        //===============================->
+        Users users = pSession->find<User>();
+        const std::string &strJson = json_serializer(users, 200, action(), "获取用户列表成功");
+        //<-===============================
+
+        // 需要将敏感信息删除
+        //===============================->
+        rapidjson::Document document;
+        if (document.Parse(strJson).HasParseError())
+        {
+            response().status(response::internal_server_error);
+            response().out() << json_serializer(response::internal_server_error,action(),"未知错误");
+            return;
+        }
+
+        if (document.HasMember("data") && document["data"].IsArray())
+        {
+            rapidjson::Value& data = document["data"];
+            for (rapidjson::SizeType i = 0; i < data.Size(); ++i)
             {
-                rapidjson::Value& info = user["user_info"];
-                if (!info.RemoveMember("user_password"))
+                rapidjson::Value& user = data[i];
+                if (user.HasMember("user_info") && user["user_info"].IsObject())
                 {
-                    //如果有一个移除失败都不能返回。这个嵌套太多了，暂时先就这样吧。
-                    response().status(response::internal_server_error);
-                    response().out() << json_serializer(response::internal_server_error,action(),"系统错误");
-                    return;
+                    rapidjson::Value& info = user["user_info"];
+                    if (!info.RemoveMember("user_password"))
+                    {
+                        //如果有一个移除失败都不能返回。这个嵌套太多了，暂时先就这样吧。
+                        response().status(response::internal_server_error);
+                        response().out() << json_serializer(response::internal_server_error,action(),"系统错误");
+                        return;
+                    }
                 }
             }
         }
+
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        document.Accept(writer);
+
+        response().status(response::ok);
+        response().out() << buffer.GetString();
+        //<-===============================
     }
-
-    rapidjson::StringBuffer buffer;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    document.Accept(writer);
-
-    response().status(response::ok);
-    response().out() << buffer.GetString();
-    //<-===============================
+    catch (const std::exception& ex)
+    {
+        response().status(response::internal_server_error);
+        response().out() << json_serializer(response::internal_server_error, action(), "服务器内部出错");
+        return;
+    }
 }
 
 void UserService::get_user_list(unsigned nPageSize, unsigned nPageIndex)
@@ -194,80 +211,184 @@ void UserService::get_user_list(unsigned nPageSize, unsigned nPageIndex)
     const cppcms::string_key& strToken = request().getenv("HTTP_AUTHORIZATION");
     if (strToken.empty())
     {
-        response().status(response::bad_request);
-        response().out() << json_serializer(response::bad_request,action(),"认证失败");
+        response().status(response::unauthorized);
+        response().out() << json_serializer(response::unauthorized,action(),"认证失败");
+        return;
+    }
+    std::pair<bool, cppcms::string_key> verify = AuthorizeInstance::Instance().verify_token(strToken);
+    if (!verify.first)
+    {
+        response().status(response::unauthorized);
+        response().out() << json_serializer(response::unauthorized,action(),"认证失败");
         return;
     }
     //<-===============================
 
     // 验证用户是不是超级管理员, 不信任Token直接数据库去找
     //===============================->
-    const std::string& strUserId = AuthorizeInstance::Instance().get_user_id(strToken);
-    const std::unique_ptr<dbo::Session>& pSession = dbo_session();
-    dbo::Transaction transaction(*pSession);
-    dbo::ptr<User> pUser = pSession->find<User>().where("user_id=?").bind(strUserId);
-    if (!pUser)
+    try
     {
-        response().status(response::bad_request);
-        response().out() << json_serializer(response::bad_request,action(),"认证失败");
-        return;
-    }
-    if (pUser->getUserRole() != UserRole::ADMINISTRATOR)
-    {
-        response().status(response::bad_request);
-        response().out() << json_serializer(response::bad_request,action(),"认证失败");
-        return;
-    }
-    //<-===============================
-
-    // 获取所有用户信息并序列化成JSON数据
-    //===============================->
-    Users users = pSession->find<User>().offset((nPageIndex -1) * nPageSize).limit(nPageSize);
-    const std::string& strJson = json_serializer(users, 200, action(), "获取用户列表成功");
-    //<-===============================
-
-    // 需要将敏感信息删除
-    //===============================->
-    rapidjson::Document document;
-    if (document.Parse(strJson).HasParseError())
-    {
-        response().status(response::internal_server_error);
-        response().out() << json_serializer(response::internal_server_error,action(),"未知错误");
-        return;
-    }
-
-    if (document.HasMember("data") && document["data"].IsArray())
-    {
-        rapidjson::Value& data = document["data"];
-        for (rapidjson::SizeType i = 0; i < data.Size(); ++i)
+        const std::string &strUserId = AuthorizeInstance::Instance().get_user_id(strToken);
+        const std::unique_ptr<dbo::Session> &pSession = dbo_session();
+        dbo::Transaction transaction(*pSession);
+        dbo::ptr<User> pUser = pSession->find<User>().where("user_id=?").bind(strUserId);
+        if (!pUser)
         {
-            rapidjson::Value& user = data[i];
-            if (user.HasMember("user_info") && user["user_info"].IsObject())
+            response().status(response::bad_request);
+            response().out() << json_serializer(response::bad_request, action(), "认证失败");
+            return;
+        }
+        if (pUser->getUserRole() != UserRole::ADMINISTRATOR)
+        {
+            response().status(response::bad_request);
+            response().out() << json_serializer(response::bad_request, action(), "认证失败");
+            return;
+        }
+        //<-===============================
+
+        // 获取所有用户信息并序列化成JSON数据
+        //===============================->
+        Users users = pSession->find<User>().offset((nPageIndex - 1) * nPageSize).limit(nPageSize);
+        const std::string &strJson = json_serializer(users, 200, action(), "获取用户列表成功");
+        //<-===============================
+
+        // 需要将敏感信息删除
+        //===============================->
+        rapidjson::Document document;
+        if (document.Parse(strJson).HasParseError())
+        {
+            response().status(response::internal_server_error);
+            response().out() << json_serializer(response::internal_server_error, action(), "未知错误");
+            return;
+        }
+
+        if (document.HasMember("data") && document["data"].IsArray())
+        {
+            rapidjson::Value &data = document["data"];
+            for (rapidjson::SizeType i = 0; i < data.Size(); ++i)
             {
-                rapidjson::Value& info = user["user_info"];
-                if (!info.RemoveMember("user_password"))
+                rapidjson::Value &user = data[i];
+                if (user.HasMember("user_info") && user["user_info"].IsObject())
                 {
-                    //如果有一个移除失败都不能返回。这个嵌套太多了，暂时先就这样吧。
-                    response().status(response::internal_server_error);
-                    response().out() << json_serializer(response::internal_server_error,action(),"系统错误");
-                    return;
+                    rapidjson::Value &info = user["user_info"];
+                    if (!info.RemoveMember("user_password"))
+                    {
+                        //如果有一个移除失败都不能返回。这个嵌套太多了，暂时先就这样吧。
+                        response().status(response::internal_server_error);
+                        response().out() << json_serializer(response::internal_server_error, action(), "系统错误");
+                        return;
+                    }
                 }
             }
         }
+
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        document.Accept(writer);
+
+        response().status(response::ok);
+        response().out() << buffer.GetString();
+        //<-===============================
     }
-
-    rapidjson::StringBuffer buffer;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    document.Accept(writer);
-
-    response().status(response::ok);
-    response().out() << buffer.GetString();
-    //<-===============================
+    catch (const std::exception& ex)
+    {
+        response().status(response::internal_server_error);
+        response().out() << json_serializer(response::internal_server_error, action(), "服务器内部出错");
+        return;
+    }
 }
 
 void UserService::get_user_info(const std::string &strUserId)
 {
+    // 判断TOKEN合法性
+    //===============================->
+    const cppcms::string_key& strToken = request().getenv("HTTP_AUTHORIZATION");
+    if (strToken.empty())
+    {
+        response().status(response::unauthorized);
+        response().out() << json_serializer(response::unauthorized,action(),"认证失败");
+        return;
+    }
+    std::pair<bool, cppcms::string_key> verify = AuthorizeInstance::Instance().verify_token(strToken);
+    if (!verify.first)
+    {
+        response().status(response::unauthorized);
+        response().out() << json_serializer(response::unauthorized,action(),"认证失败");
+        return;
+    }
+    //<-===============================
 
+    // 获取用户信息
+    //===============================->
+    try
+    {
+        const std::unique_ptr<dbo::Session> &pSession = dbo_session();
+        dbo::Transaction transaction(*pSession);
+        const dbo::ptr<User> &pUser = pSession->find<User>().where("user_id=?").bind(strUserId);
+        if (!pUser)
+        {
+            response().status(response::not_found);
+            response().out() << json_serializer(response::not_found, action(), "用户不存在");
+            return;
+        }
+        const std::string &strJson = json_serializer(pUser, response::ok, action(), "获取成功");
+
+        if (AuthorizeInstance::Instance().is_admin(strToken))
+        {
+            response().status(response::ok);
+            response().out() << strJson;
+            return;
+        }
+        //<-===============================
+
+        // 去除关键信息才能返回
+        //===============================->
+        rapidjson::Document document;
+        if (document.Parse(strJson).HasParseError())
+        {
+            response().status(response::internal_server_error);
+            response().out() << json_serializer(response::internal_server_error, action(), "未知错误");
+            return;
+        }
+
+        if (document.HasMember("data") && document["data"].IsObject())
+        {
+            rapidjson::Value &user = document["data"];
+            user.RemoveMember("user_role");
+            user.RemoveMember("articles");
+            user.RemoveMember("user_status");
+            if (user.HasMember("user_info") && user["user_info"].IsObject())
+            {
+                rapidjson::Value &info = user["user_info"];
+                info.RemoveMember("user_ip");
+                info.RemoveMember("info_id");
+                info.RemoveMember("user_info");
+                if (!info.RemoveMember("user_password"))
+                {
+                    response().status(response::internal_server_error);
+                    response().out() << json_serializer(response::internal_server_error, action(), "系统错误");
+                    return;
+                }
+            }
+        }
+        //<-===============================
+
+        // 返回JSON数据
+        //===============================->
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        document.Accept(writer);
+
+        response().status(response::ok);
+        response().out() << buffer.GetString();
+        //<-===============================
+    }
+    catch (const std::exception& ex)
+    {
+        response().status(response::internal_server_error);
+        response().out() << json_serializer(response::internal_server_error, action(), "服务器内部出错");
+        return;
+    }
 }
 
 void UserService::register_user()
@@ -310,17 +431,17 @@ void UserService::register_user()
         response().out() << json_serializer(response::bad_request, action(), "邮箱长度不小于五");
         return;
     }
-    if (strPassword.length() < 10)
-    {
-        response().status(response::bad_request);
-        response().out() << json_serializer(response::bad_request, action(), "密码长度不小于十");
-        return;
-    }
     const std::regex reg(R"([\w!#$%&'*+/=?^_`{|}~-]+(?:\.[\w!#$%&'*+/=?^_`{|}~-]+)*@(?:[\w](?:[\w-]*[\w])?\.)+[\w](?:[\w-]*[\w])?)");
     if (!std::regex_match(strEMail, reg))
     {
         response().status(response::bad_request);
         response().out() << json_serializer(response::bad_request, action(), "邮箱格式不正确");
+        return;
+    }
+    if (strPassword.length() < 10)
+    {
+        response().status(response::bad_request);
+        response().out() << json_serializer(response::bad_request, action(), "密码长度不小于十");
         return;
     }
     const std::regex pwd_reg(R"(^[a-zA-Z]\w{5,17}$)");
@@ -414,53 +535,224 @@ void UserService::delete_user(const std::string &strUserId)
         response().out() << json_serializer(response::bad_request,action(),"认证失败");
         return;
     }
-    //<-===============================
-
-    // 验证用户是不是超级管理员, 不信任Token直接数据库去找
-    //===============================->
-    const std::string& strAdminId = AuthorizeInstance::Instance().get_user_id(strToken);
-    const std::unique_ptr<dbo::Session>& pSession = dbo_session();
-    dbo::Transaction transaction(*pSession);
-    dbo::ptr<User> pUser = pSession->find<User>().where("user_id=?").bind(strUserId);
-    if (!pUser)
+    std::pair<bool, cppcms::string_key> verify = AuthorizeInstance::Instance().verify_token(strToken);
+    if (!verify.first)
     {
-        response().status(response::bad_request);
-        response().out() << json_serializer(response::bad_request,action(),"认证失败");
-        return;
-    }
-    if (pUser->getUserRole() != UserRole::ADMINISTRATOR)
-    {
-        response().status(response::bad_request);
-        response().out() << json_serializer(response::bad_request,action(),"认证失败");
+        response().status(response::unauthorized);
+        response().out() << json_serializer(response::unauthorized,action(),"认证失败");
         return;
     }
     //<-===============================
 
-    // 验证超级管理员成功，开始逻辑删除用户
-    //===============================->
-    pUser.reset(nullptr);
-    pUser = pSession->find<User>().where("user_id=?").bind(strUserId);
-    if (!pUser)
+    try
     {
-        response().status(response::not_found);
-        response().out() << json_serializer(response::not_found,action(),"未找到该用户");
+        // 验证用户是不是超级管理员, 不信任Token直接数据库去找
+        //===============================->
+        const std::string &strAdminId = AuthorizeInstance::Instance().get_user_id(strToken);
+        const std::unique_ptr<dbo::Session> &pSession = dbo_session();
+        dbo::Transaction transaction(*pSession);
+        dbo::ptr<User> pUser = pSession->find<User>().where("user_id=?").bind(strUserId);
+        if (!pUser)
+        {
+            response().status(response::bad_request);
+            response().out() << json_serializer(response::bad_request, action(), "认证失败");
+            return;
+        }
+        if (pUser->getUserRole() != UserRole::ADMINISTRATOR)
+        {
+            response().status(response::bad_request);
+            response().out() << json_serializer(response::bad_request, action(), "认证失败");
+            return;
+        }
+        //<-===============================
+
+        // 验证超级管理员成功，开始逻辑删除用户
+        //===============================->
+        pUser.reset(nullptr);
+        pUser = pSession->find<User>().where("user_id=?").bind(strUserId);
+        if (!pUser)
+        {
+            response().status(response::not_found);
+            response().out() << json_serializer(response::not_found, action(), "未找到该用户");
+            return;
+        }
+
+        pUser.modify()->setUserStatus(UserStatus::DISABLE);
+
+        response().status(response::ok);
+        response().out() << json_serializer(response::ok, action(), "删除成功");
+        //<-===============================
+    }
+    catch (const std::exception& ex)
+    {
+        response().status(response::internal_server_error);
+        response().out() << json_serializer(response::internal_server_error, action(), "服务器内部出错");
         return;
     }
-
-    pUser.modify()->setUserStatus(UserStatus::DISABLE);
-
-    response().status(response::ok);
-    response().out() << json_serializer(response::ok,action(),"删除成功");
-   //<-===============================
 }
 
 void UserService::modify_user_info()
 {
+    // 普通用户可以修改的信息：签名、头像、用户名、(邮箱)
+    //===============================->
+    const cppcms::string_key& strToken = request().getenv("HTTP_AUTHORIZATION");
+    if (strToken.empty())
+    {
+        response().status(response::bad_request);
+        response().out() << json_serializer(response::bad_request,action(),"认证失败");
+        return;
+    }
+    std::pair<bool, cppcms::string_key> verify = AuthorizeInstance::Instance().verify_token(strToken);
+    if (!verify.first)
+    {
+        response().status(response::unauthorized);
+        response().out() << json_serializer(response::unauthorized,action(),"认证失败");
+        return;
+    }
+    //<-===============================
 
+    // 接收用户发送的修改信息
+    //===============================->
+    try
+    {
+        const std::unique_ptr<dbo::Session>& pSession = dbo_session();
+        dbo::Transaction transaction(*pSession);
+        dbo::ptr<User> pUser = dbo::make_ptr<User>();
+
+        char strBuffer[request().raw_post_data().second + 1];
+        memcpy(strBuffer, static_cast<char *>(request().raw_post_data().first),
+               request().raw_post_data().second);
+        json_unserializer(strBuffer, pUser);
+
+        dbo::ptr<User> pModify = pSession->find<User>().where("user_id=?").bind(pUser->getUserId());
+        if (!pModify)
+        {
+            response().status(response::not_found);
+            response().out() << json_serializer(response::not_found, action(), "未找到该用户");
+            return;
+        }
+
+        rapidjson::Document document;
+        document.Parse(strBuffer);
+        const bool bISAdmin = AuthorizeInstance::Instance().is_admin(strToken);
+        if (bISAdmin)
+        {
+
+            pModify.modify()->setUserStatus(pUser->getUserStatus());
+            pModify.modify()->setUserName(pUser->getUserName());
+            pModify.modify()->setDisplayName(pUser->getDisplayName());
+            pModify.modify()->setUserRole(pUser->getUserRole());
+
+            if (document.HasMember("user_email") && document.IsString())
+            {
+                pModify->getUserInfo().modify()->setEmail(document["user_email"].GetString());
+            }
+            if (document.HasMember("user_signature") && document.IsString())
+            {
+                pModify->getUserInfo().modify()->setSignature(document["user_signature"].GetString());
+            }
+            if (document.HasMember("user_profile_photo") && document.IsString())
+            {
+                pModify->getUserInfo().modify()->setProfilePhoto(document["user_profile_photo"].GetString());
+            }
+            //pModify->getUserInfo().modify()->setLevel();
+        }
+        else
+        {
+            pModify.modify()->setDisplayName(pUser->getDisplayName());
+
+            if (document.HasMember("user_email") && document.IsString())
+            {
+                pModify->getUserInfo().modify()->setEmail(document["user_email"].GetString());
+            }
+            if (document.HasMember("user_signature") && document.IsString())
+            {
+                pModify->getUserInfo().modify()->setSignature(document["user_signature"].GetString());
+            }
+            if (document.HasMember("user_profile_photo") && document.IsString())
+            {
+                pModify->getUserInfo().modify()->setProfilePhoto(document["user_profile_photo"].GetString());
+            }
+        }
+    }
+    catch (const std::exception& ex)
+    {
+        response().status(response::internal_server_error);
+        response().out() << json_serializer(response::internal_server_error, action(), "服务器内部出错");
+        return;
+    }
+    //<-===============================
 }
 
-void UserService::modify_user_password()
+void UserService::modify_user_password(const std::string& strUserId)
 {
+    // 验证TOKEN
+    //===============================->
+    const cppcms::string_key& strToken = request().getenv("HTTP_AUTHORIZATION");
+    if (strToken.empty())
+    {
+        response().status(response::bad_request);
+        response().out() << json_serializer(response::bad_request,action(),"认证失败");
+        return;
+    }
+    std::pair<bool, cppcms::string_key> verify = AuthorizeInstance::Instance().verify_token(strToken);
+    if (!verify.first)
+    {
+        response().status(response::unauthorized);
+        response().out() << json_serializer(response::unauthorized,action(),"认证失败");
+        return;
+    }
+    //<-===============================
 
+    // 带参：修改指定用户密码。不带参：修改token所属用户的密码
+    //===============================->
+    const std::string strTokenUserId = AuthorizeInstance::Instance().get_user_id(strToken);
+    const std::string strId = strUserId.empty() ? strTokenUserId : strUserId;
+    //<-===============================
+
+    try
+    {
+        std::unique_ptr<dbo::Session>& pSession = dbo_session();
+        dbo::Transaction transaction(*pSession);
+        dbo::ptr<User> pUser = pSession->find<User>().where("user_id=?").bind(strId);
+        if (!pUser)
+        {
+            response().status(response::not_found);
+            response().out() << json_serializer(response::not_found, action(), "该用户未找到");
+            return;
+        }
+
+        std::string strPassword = request().post("user_password");
+        if (strPassword.empty())
+        {
+            response().status(response::not_found);
+            response().out() << json_serializer(response::not_found, action(), "没有检测到有密码");
+            return;
+        }
+        if (strPassword.length() < 10)
+        {
+            response().status(response::bad_request);
+            response().out() << json_serializer(response::bad_request, action(), "密码长度不小于十");
+            return;
+        }
+        const std::regex pwd_reg(R"(^[a-zA-Z]\w{5,17}$)");
+        if (!std::regex_match(strPassword, pwd_reg))
+        {
+            response().status(response::bad_request);
+            response().out() << json_serializer(response::bad_request, action(), "密码必须以字母开头，长度在6~18之间，只能包含字母、数字和下划线");
+            return;
+        }
+
+        strPassword = boost::to_upper_copy<std::string>(sha256(md5(strPassword)));
+
+        pUser->getUserInfo().modify()->setPassword(strPassword);
+        response().status(response::ok);
+        response().out() << json_serializer(response::ok, action(), "密码修改成功");
+    }
+    catch (const std::exception& ex)
+    {
+        response().status(response::internal_server_error);
+        response().out() << json_serializer(response::internal_server_error, action(), "服务器内部出误");
+    }
 }
 

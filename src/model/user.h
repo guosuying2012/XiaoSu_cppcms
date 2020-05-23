@@ -34,14 +34,34 @@ public:
 		m_strName.clear();
 	}
 
+	inline std::string getUserId() const
+    {
+	    return m_strId;
+    }
+
+    inline std::string getUserName() const
+    {
+        return m_strName;
+    }
+
 	inline void setUserName(const std::string& strUserName)
     {
 	    this->m_strName = strUserName;
     }
 
+    inline UserStatus getUserStatus() const
+    {
+	    return m_nStatus;
+    }
+
     inline void setUserStatus(const UserStatus& status)
     {
 	    this->m_nStatus = status;
+    }
+
+    inline std::string getDisplayName() const
+    {
+	    return m_strDisplayName;
     }
 
     inline void setDisplayName(const std::string& strDisplayName)

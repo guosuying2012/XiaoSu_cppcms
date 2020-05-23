@@ -19,6 +19,7 @@ void BaseService::main(std::string strUrl)
 {
     m_strAction = request().getenv("PATH_INFO");
     response().content_type("application/json; charset=utf-8");
+    response().set_header("Server", "www.yengsu.com");
     if(!dispatcher().dispatch(strUrl))
     {
         response().status(cppcms::http::response::not_found);
