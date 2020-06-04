@@ -686,6 +686,10 @@ void UserService::modify_user_info()
 
 void UserService::modify_user_password(const std::string& strUserId)
 {
+    std::string strId;
+
+    strId.clear();
+
     // 验证TOKEN
     //===============================->
     const cppcms::string_key& strToken = request().getenv("HTTP_AUTHORIZATION");
@@ -707,7 +711,16 @@ void UserService::modify_user_password(const std::string& strUserId)
     // 带参：修改指定用户密码。不带参：修改token所属用户的密码
     //===============================->
     const std::string strTokenUserId = AuthorizeInstance::Instance().get_user_id(strToken);
-    const std::string strId = strUserId.empty() ? strTokenUserId : strUserId;
+    // const std::string strId = strUserId.empty() ? strTokenUserId : strUserId;
+    const bool bIsAdmin = AuthorizeInstance::Instance().is_admin(strToken);
+    if (bIsAdmin)
+    {
+        strId = strUserId.empty() ? strTokenUserId : strUserId;
+    }
+    else
+    {
+        strId = strTokenUserId;
+    }
     //<-===============================
 
     try

@@ -675,12 +675,40 @@ void ArticleService::all_articles()
 		dbo::Transaction transaction(*pSession);
 		Articles vecArticles = pSession->find<Article>()
 		        .where(bIsAdmin ? "" : "article_approval_status=1");
-		response().status(response::ok);
-        response().out() << json_serializer(vecArticles,
-							                response::ok,
-							                action(),
-							                "获取成功");
-	}
+
+        const std::string &strJson = json_serializer(vecArticles,response::ok,action(),"获取成功");
+
+        // 删除不需要的字段
+        //===============================->
+        rapidjson::Document document;
+        if (document.Parse(strJson).HasParseError())
+        {
+            response().status(response::internal_server_error);
+            response().out() << json_serializer(response::internal_server_error, action(), "未知错误");
+            return;
+        }
+
+        if (document.HasMember("data") && document["data"].IsArray())
+        {
+            rapidjson::Value &data = document["data"];
+            for (rapidjson::SizeType i = 0; i < data.Size(); ++i)
+            {
+                rapidjson::Value &user = data[i];
+                user.RemoveMember("article_id");
+                user.RemoveMember("article_content");
+                user.RemoveMember("article_approval_status");
+                user.RemoveMember("article_last_change");
+            }
+        }
+
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        document.Accept(writer);
+
+        response().status(response::ok);
+        response().out() << buffer.GetString();
+        //<-===============================
+    }
 	catch (const std::exception& ex)
 	{
 		PLOG_ERROR << ex.what();
@@ -729,11 +757,38 @@ void ArticleService::all_articles(unsigned nPageSize, unsigned nCurrentPage)
 		        .offset((nCurrentPage -1 ) * nPageSize)
 		        .limit(nPageSize);
 
-		response().status(response::ok);
-        response().out() << json_serializer(vecArticles,
-							                response::ok,
-							                action(),
-							                "获取成功");
+        const std::string& strJson = json_serializer(vecArticles,response::ok,action(),"获取成功");
+
+        // 删除不需要的字段
+        //===============================->
+        rapidjson::Document document;
+        if (document.Parse(strJson).HasParseError())
+        {
+            response().status(response::internal_server_error);
+            response().out() << json_serializer(response::internal_server_error, action(), "未知错误");
+            return;
+        }
+
+        if (document.HasMember("data") && document["data"].IsArray())
+        {
+            rapidjson::Value &data = document["data"];
+            for (rapidjson::SizeType i = 0; i < data.Size(); ++i)
+            {
+                rapidjson::Value &user = data[i];
+                user.RemoveMember("article_id");
+                user.RemoveMember("article_content");
+                user.RemoveMember("article_approval_status");
+                user.RemoveMember("article_last_change");
+            }
+        }
+
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        document.Accept(writer);
+
+        response().status(response::ok);
+        response().out() << buffer.GetString();
+        //<-===============================
 	}
 	catch (const std::exception& ex)
 	{
@@ -801,11 +856,38 @@ void ArticleService::all_article_by_user(const std::string& strUserId)
         }
         //<-===============================
 
-		response().status(response::ok);
-        response().out() << json_serializer(vecArticles,
-							                response::ok,
-							                action(),
-							                "获取成功");
+        const std::string& strJson = json_serializer(vecArticles,response::ok,action(),"获取成功");
+
+        // 删除不需要的字段
+        //===============================->
+        rapidjson::Document document;
+        if (document.Parse(strJson).HasParseError())
+        {
+            response().status(response::internal_server_error);
+            response().out() << json_serializer(response::internal_server_error, action(), "未知错误");
+            return;
+        }
+
+        if (document.HasMember("data") && document["data"].IsArray())
+        {
+            rapidjson::Value &data = document["data"];
+            for (rapidjson::SizeType i = 0; i < data.Size(); ++i)
+            {
+                rapidjson::Value &user = data[i];
+                user.RemoveMember("article_id");
+                user.RemoveMember("article_content");
+                user.RemoveMember("article_approval_status");
+                user.RemoveMember("article_last_change");
+            }
+        }
+
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        document.Accept(writer);
+
+        response().status(response::ok);
+        response().out() << buffer.GetString();
+        //<-===============================
 	}
 	catch (const std::exception& ex)
 	{
@@ -877,11 +959,38 @@ void ArticleService::all_article_by_user(const std::string& strUserId,
         }
         //<-===============================
 
-		response().status(response::ok);
-        response().out() << json_serializer(vecArticles,
-							                response::ok,
-							                action(),
-							                "获取成功");
+        const std::string& strJson = json_serializer(vecArticles,response::ok,action(),"获取成功");
+
+        // 删除不需要的字段
+        //===============================->
+        rapidjson::Document document;
+        if (document.Parse(strJson).HasParseError())
+        {
+            response().status(response::internal_server_error);
+            response().out() << json_serializer(response::internal_server_error, action(), "未知错误");
+            return;
+        }
+
+        if (document.HasMember("data") && document["data"].IsArray())
+        {
+            rapidjson::Value &data = document["data"];
+            for (rapidjson::SizeType i = 0; i < data.Size(); ++i)
+            {
+                rapidjson::Value &user = data[i];
+                user.RemoveMember("article_id");
+                user.RemoveMember("article_content");
+                user.RemoveMember("article_approval_status");
+                user.RemoveMember("article_last_change");
+            }
+        }
+
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        document.Accept(writer);
+
+        response().status(response::ok);
+        response().out() << buffer.GetString();
+        //<-===============================
 	}
 	catch (const std::exception& ex)
 	{
@@ -931,6 +1040,14 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId)
         dbo::ptr<Category> pCategory = pSession->find<Category>()
                 .where("category_id=?")
                 .bind(strCategoryId);
+        if (!pCategory)
+        {
+            response().status(response::not_found);
+            response().out() << json_serializer(response::not_found,
+                                                action(),
+                                                "该分类不存在");
+            return;
+        }
 
         // 将异常状态的文章排除，前提是非管理员
         //===============================->
@@ -949,11 +1066,38 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId)
         }
         //<-===============================
 
-	    response().status(response::ok);
-        response().out() << json_serializer(vecArticles,
-							                response::ok,
-							                action(),
-							                "获取成功");
+        const std::string& strJson = json_serializer(vecArticles,response::ok,action(),"获取成功");
+
+        // 删除不需要的字段
+        //===============================->
+        rapidjson::Document document;
+        if (document.Parse(strJson).HasParseError())
+        {
+            response().status(response::internal_server_error);
+            response().out() << json_serializer(response::internal_server_error, action(), "未知错误");
+            return;
+        }
+
+        if (document.HasMember("data") && document["data"].IsArray())
+        {
+            rapidjson::Value &data = document["data"];
+            for (rapidjson::SizeType i = 0; i < data.Size(); ++i)
+            {
+                rapidjson::Value &user = data[i];
+                user.RemoveMember("article_id");
+                user.RemoveMember("article_content");
+                user.RemoveMember("article_approval_status");
+                user.RemoveMember("article_last_change");
+            }
+        }
+
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        document.Accept(writer);
+
+        response().status(response::ok);
+        response().out() << buffer.GetString();
+        //<-===============================
     }
     catch (const std::exception& ex)
     {
@@ -1010,11 +1154,38 @@ void ArticleService::all_article_by_category(const std::string& strCategoryId,
 				.offset((nCurrentPage -1 ) * nPageSize)
 				.limit(nPageSize);
 
-		response().status(response::ok);
-        response().out() << json_serializer(vecArticles,
-							                response::ok,
-							                action(),
-							                "获取成功");
+        const std::string& strJson = json_serializer(vecArticles,response::ok,action(),"获取成功");
+
+        // 删除不需要的字段
+        //===============================->
+        rapidjson::Document document;
+        if (document.Parse(strJson).HasParseError())
+        {
+            response().status(response::internal_server_error);
+            response().out() << json_serializer(response::internal_server_error, action(), "未知错误");
+            return;
+        }
+
+        if (document.HasMember("data") && document["data"].IsArray())
+        {
+            rapidjson::Value &data = document["data"];
+            for (rapidjson::SizeType i = 0; i < data.Size(); ++i)
+            {
+                rapidjson::Value &user = data[i];
+                user.RemoveMember("article_id");
+                user.RemoveMember("article_content");
+                user.RemoveMember("article_approval_status");
+                user.RemoveMember("article_last_change");
+            }
+        }
+
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        document.Accept(writer);
+
+        response().status(response::ok);
+        response().out() << buffer.GetString();
+        //<-===============================
 	}
 	catch (const std::exception& ex)
 	{
