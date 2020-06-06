@@ -206,6 +206,16 @@ void UserService::get_user_list()
 
 void UserService::get_user_list(unsigned nPageSize, unsigned nPageIndex)
 {
+    // 判断请求方式
+    //===============================->
+    if (request().request_method() != "GET")
+    {
+        response().status(response::bad_request);
+        response().out() << json_serializer(response::bad_request, action(), "错误的请求");
+        return;
+    }
+    //<-===============================
+
     // 此接口仅超级管理员，首先验证TOKEN
     //===============================->
     const cppcms::string_key& strToken = request().getenv("HTTP_AUTHORIZATION");
@@ -300,20 +310,12 @@ void UserService::get_user_list(unsigned nPageSize, unsigned nPageIndex)
 
 void UserService::get_user_info(const std::string &strUserId)
 {
-    // 判断TOKEN合法性
+    // 判断请求方式
     //===============================->
-    const cppcms::string_key& strToken = request().getenv("HTTP_AUTHORIZATION");
-    if (strToken.empty())
+    if (request().request_method() != "GET")
     {
-        response().status(response::unauthorized);
-        response().out() << json_serializer(response::unauthorized,action(),"认证失败");
-        return;
-    }
-    std::pair<bool, cppcms::string_key> verify = AuthorizeInstance::Instance().verify_token(strToken);
-    if (!verify.first)
-    {
-        response().status(response::unauthorized);
-        response().out() << json_serializer(response::unauthorized,action(),"认证失败");
+        response().status(response::bad_request);
+        response().out() << json_serializer(response::bad_request, action(), "错误的请求");
         return;
     }
     //<-===============================
@@ -331,8 +333,9 @@ void UserService::get_user_info(const std::string &strUserId)
             response().out() << json_serializer(response::not_found, action(), "用户不存在");
             return;
         }
-        const std::string &strJson = json_serializer(pUser, response::ok, action(), "获取成功");
 
+        const std::string &strJson = json_serializer(pUser, response::ok, action(), "获取成功");
+        const cppcms::string_key& strToken = request().getenv("HTTP_AUTHORIZATION");
         if (AuthorizeInstance::Instance().is_admin(strToken))
         {
             response().status(response::ok);
@@ -363,6 +366,7 @@ void UserService::get_user_info(const std::string &strUserId)
                 info.RemoveMember("user_ip");
                 info.RemoveMember("info_id");
                 info.RemoveMember("user_info");
+                info.RemoveMember("user_email");
                 if (!info.RemoveMember("user_password"))
                 {
                     response().status(response::internal_server_error);
@@ -620,8 +624,7 @@ void UserService::modify_user_info()
         dbo::ptr<User> pUser = dbo::make_ptr<User>();
 
         char strBuffer[request().raw_post_data().second + 1];
-        memcpy(strBuffer, static_cast<char *>(request().raw_post_data().first),
-               request().raw_post_data().second);
+        memcpy(strBuffer, static_cast<char *>(request().raw_post_data().first), request().raw_post_data().second);
         json_unserializer(strBuffer, pUser);
 
         dbo::ptr<User> pModify = pSession->find<User>().where("user_id=?").bind(pUser->getUserId());
@@ -637,42 +640,27 @@ void UserService::modify_user_info()
         const bool bISAdmin = AuthorizeInstance::Instance().is_admin(strToken);
         if (bISAdmin)
         {
-
             pModify.modify()->setUserStatus(pUser->getUserStatus());
             pModify.modify()->setUserName(pUser->getUserName());
-            pModify.modify()->setDisplayName(pUser->getDisplayName());
             pModify.modify()->setUserRole(pUser->getUserRole());
-
-            if (document.HasMember("user_email") && document.IsString())
-            {
-                pModify->getUserInfo().modify()->setEmail(document["user_email"].GetString());
-            }
-            if (document.HasMember("user_signature") && document.IsString())
-            {
-                pModify->getUserInfo().modify()->setSignature(document["user_signature"].GetString());
-            }
-            if (document.HasMember("user_profile_photo") && document.IsString())
-            {
-                pModify->getUserInfo().modify()->setProfilePhoto(document["user_profile_photo"].GetString());
-            }
-            //pModify->getUserInfo().modify()->setLevel();
         }
-        else
+
+        if (!pUser->getDisplayName().empty())
         {
             pModify.modify()->setDisplayName(pUser->getDisplayName());
+        }
 
-            if (document.HasMember("user_email") && document.IsString())
-            {
-                pModify->getUserInfo().modify()->setEmail(document["user_email"].GetString());
-            }
-            if (document.HasMember("user_signature") && document.IsString())
-            {
-                pModify->getUserInfo().modify()->setSignature(document["user_signature"].GetString());
-            }
-            if (document.HasMember("user_profile_photo") && document.IsString())
-            {
-                pModify->getUserInfo().modify()->setProfilePhoto(document["user_profile_photo"].GetString());
-            }
+        if (document.HasMember("user_email") && document.IsString())
+        {
+            pModify->getUserInfo().modify()->setEmail(document["user_email"].GetString());
+        }
+        if (document.HasMember("user_signature") && document.IsString())
+        {
+            pModify->getUserInfo().modify()->setSignature(document["user_signature"].GetString());
+        }
+        if (document.HasMember("user_profile_photo") && document.IsString())
+        {
+            pModify->getUserInfo().modify()->setProfilePhoto(document["user_profile_photo"].GetString());
         }
     }
     catch (const std::exception& ex)
@@ -719,6 +707,7 @@ void UserService::modify_user_password(const std::string& strUserId)
     }
     else
     {
+        // 验证不是超级管理员，应该修改TOKEN所带的UserId
         strId = strTokenUserId;
     }
     //<-===============================
@@ -739,7 +728,7 @@ void UserService::modify_user_password(const std::string& strUserId)
         if (strPassword.empty())
         {
             response().status(response::not_found);
-            response().out() << json_serializer(response::not_found, action(), "没有检测到有密码");
+            response().out() << json_serializer(response::not_found, action(), "密码不能为空");
             return;
         }
         if (strPassword.length() < 10)

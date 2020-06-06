@@ -31,6 +31,19 @@ public:
 
     const Wt::Dbo::Session *session() const { return DboInstance::Instance().Session().get(); }
 
+    template<typename T>
+    void unserialize(const std::string& strJson, T& t)
+    {
+        if (m_Document.Parse(strJson).HasParseError())
+        {
+            PLOG_ERROR << "JsonParseError Code: " << m_Document.GetParseError()
+                       << ". " << "JsonString: " << strJson;
+            return;
+        }
+
+        t.persist(*this);
+    }
+
 	template<typename T>
     void unserialize(const std::string& strJson, Wt::Dbo::ptr<T>& t)
 	{

@@ -5,6 +5,7 @@
 #ifndef XIAOSU_CATEGORY_H
 #define XIAOSU_CATEGORY_H
 
+#include <utility>
 #include "define.h"
 
 class Category
@@ -21,6 +22,36 @@ public:
 	{
 	    return m_strId;
 	}
+
+	inline void set_parent_id(const std::string& strId)
+    {
+	    this->m_strParentId = strId;
+    }
+
+	inline std::string get_parent_id() const
+    {
+        return this->m_strParentId;
+    }
+
+    inline void set_name(const std::string& strName)
+    {
+	    this->m_strCategoryName = strName;
+    }
+
+    inline std::string get_name() const
+    {
+        return this->m_strCategoryName;
+    }
+
+    inline void rank(int nRank)
+    {
+	    this->m_nRank = nRank;
+    }
+
+    inline int rank() const
+    {
+        return m_nRank;
+    }
 
     inline Articles getArticles() const
     {

@@ -86,3 +86,17 @@ bool AuthorizeInstance::is_admin( const cppcms::string_key& strToken )
         return false;
     }
 }
+
+uint64_t AuthorizeInstance::get_role(const std::string &strToken) const
+{
+    try
+    {
+        jwt::decoded_jwt decoded(strToken);
+        return decoded.get_payload_claim("role").as_int();
+    }
+    catch (const std::exception& ex)
+    {
+        return 0;
+    }
+}
+
